@@ -4,6 +4,14 @@ public class TimeEntry {
   private Integer position;
   private String comment;
 
+  public TimeEntry() {
+  }
+
+  public TimeEntry(final Integer position, final String comment) {
+    this.position = position;
+    this.comment = comment;
+  }
+
   public String getComment() {
     return comment;
   }

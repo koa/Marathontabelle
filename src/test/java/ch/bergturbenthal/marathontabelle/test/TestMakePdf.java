@@ -47,25 +47,40 @@ public class TestMakePdf {
     phaseD.setVelocity(Double.valueOf(6));
     phaseD.setDefaultPoints();
 
+    final PhaseData phaseE = new PhaseData();
+    phaseE.setStartTime(LocalTime.parse("11:35"));
+    phaseE.setLength(Integer.valueOf(8200));
+    phaseE.setMaxTime(Duration.standardSeconds(39 * 60 + 51));
+    phaseE.setMinTime(phaseE.getMaxTime().minus(Duration.standardMinutes(2)));
+    phaseE.setVelocity(Double.valueOf(13));
+    phaseE.getEntries().add(new TimeEntry(null, "Tor 1"));
+    phaseE.getEntries().add(new TimeEntry(Integer.valueOf(900), "Tor 2"));
+    phaseE.getEntries().add(new TimeEntry(Integer.valueOf(1000), "KM 1"));
+    phaseE.getEntries().add(new TimeEntry(null, "H1"));
+    phaseE.getEntries().add(new TimeEntry(null, "Tor 2"));
+    phaseE.getEntries().add(new TimeEntry(Integer.valueOf(2000), "KM 2"));
+
     final Document document = new Document(PageSize.A4);
     PdfWriter.getInstance(document, new FileOutputStream(new File("target/test.pdf")));
     document.open();
-    appendTitle(document, "Phase A");
-    apppendTimeOverview(document, phaseA);
-    appendTimeDetail(document, phaseA);
-    appendTimetable(document, phaseA);
 
-    appendTitle(document, "Phase D");
-    apppendTimeOverview(document, phaseD);
-    appendTimeDetail(document, phaseD);
-    appendTimetable(document, phaseD);
-
+    appendPhaseOverview(document, phaseA, "Phase A");
+    appendPhaseOverview(document, phaseD, "Phase D");
+    document.newPage();
+    appendPhaseOverview(document, phaseE, "Phase E");
     document.close();
 
   }
 
   private void appendCell(final PdfPTable table, final String text, final Font font) {
     table.addCell(new Phrase(text, font));
+  }
+
+  private void appendPhaseOverview(final Document document, final PhaseData phaseData, final String title) throws DocumentException {
+    appendTitle(document, title);
+    apppendTimeOverview(document, phaseData);
+    appendTimeDetail(document, phaseData);
+    appendTimetable(document, phaseData);
   }
 
   private void appendTimeDetail(final Document document, final PhaseData phase) throws DocumentException {

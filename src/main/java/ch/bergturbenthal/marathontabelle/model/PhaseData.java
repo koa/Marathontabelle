@@ -12,7 +12,7 @@ public class PhaseData {
   private Duration minTime;
   private Duration maxTime;
   private Double velocity;
-  private Collection<TimeEntry> entries;
+  private Collection<TimeEntry> entries = new ArrayList<TimeEntry>();
 
   public Collection<TimeEntry> getEntries() {
     return entries;
