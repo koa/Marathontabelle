@@ -25,5 +25,6 @@
 	<modules>
 	  <module>model</module>
 	  <module>generator</module>
+	  <module>android-client-parent</module>
 	</modules>
 </project>
