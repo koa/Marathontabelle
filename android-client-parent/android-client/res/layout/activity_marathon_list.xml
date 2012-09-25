@@ -1,10 +1,17 @@
-<fragment xmlns:android="http://schemas.android.com/apk/res/android"
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
-    android:id="@+id/marathon_list"
-    android:name="ch.bergturbenthal.marathontabelle.androidclient.MarathonListFragment"
+    android:id="@+id/marathon_overview_layout"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:layout_marginLeft="16dp"
     android:layout_marginRight="16dp"
-    tools:context=".MarathonListActivity" />
+    android:orientation="vertical" >
 
+    <fragment
+        android:id="@+id/marathon_list"
+        android:name="ch.bergturbenthal.marathontabelle.androidclient.MarathonListFragment"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        tools:context=".MarathonListActivity" />
+
+</LinearLayout>

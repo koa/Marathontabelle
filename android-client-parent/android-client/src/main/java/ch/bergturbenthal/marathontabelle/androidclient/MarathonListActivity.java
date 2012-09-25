@@ -3,6 +3,8 @@ package ch.bergturbenthal.marathontabelle.androidclient;
 import android.content.Intent;
 import android.os.Bundle;
 import android.support.v4.app.FragmentActivity;
+import android.view.Menu;
+import android.view.MenuInflater;
 
 public class MarathonListActivity extends FragmentActivity implements MarathonListFragment.Callbacks {
 
@@ -17,6 +19,13 @@ public class MarathonListActivity extends FragmentActivity implements MarathonLi
       mTwoPane = true;
       ((MarathonListFragment) getSupportFragmentManager().findFragmentById(R.id.marathon_list)).setActivateOnItemClick(true);
     }
+  }
+
+  @Override
+  public boolean onCreateOptionsMenu(final Menu menu) {
+    final MenuInflater menuInflater = getMenuInflater();
+    menuInflater.inflate(R.menu.overview_menu, menu);
+    return true;
   }
 
   @Override
