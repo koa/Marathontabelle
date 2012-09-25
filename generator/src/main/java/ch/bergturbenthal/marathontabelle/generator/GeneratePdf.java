@@ -6,6 +6,7 @@ import java.util.Collection;
 import org.joda.time.format.DateTimeFormat;
 import org.joda.time.format.DateTimeFormatter;
 
+import ch.bergturbenthal.marathontabelle.model.MarathonData;
 import ch.bergturbenthal.marathontabelle.model.PhaseData;
 import ch.bergturbenthal.marathontabelle.model.TimeEntry;
 
@@ -26,17 +27,19 @@ public class GeneratePdf {
   private static final DateTimeFormatter DURATION_PATTERN = DateTimeFormat.forPattern("mm:ss");
   private static final DateTimeFormatter TIME_PATTERN = DateTimeFormat.forPattern("HH:mm:ss 'Uhr'");
 
-  public void makePdf(final OutputStream out, final PhaseData phaseA, final PhaseData phaseD, final PhaseData phaseE) {
+  public void makePdf(final OutputStream out, final MarathonData data, final boolean makeSmallSheets) {
     try {
       final Document document = new Document(PageSize.A4);
       PdfWriter.getInstance(document, out);
       document.open();
-      appendPhaseOverview(document, phaseA, "Phase A");
-      appendPhaseOverview(document, phaseD, "Phase D");
+      appendPhaseOverview(document, data.getPhaseA(), "Phase A");
+      appendPhaseOverview(document, data.getPhaseA(), "Phase D");
       document.newPage();
-      appendPhaseOverview(document, phaseE, "Phase E");
-      document.newPage();
-      appendSmallSheets(document, phaseE);
+      appendPhaseOverview(document, data.getPhaseE(), "Phase E");
+      if (makeSmallSheets) {
+        document.newPage();
+        appendSmallSheets(document, data.getPhaseE());
+      }
       document.close();
     } catch (final DocumentException e) {
       throw new RuntimeException(e);

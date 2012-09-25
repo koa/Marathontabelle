@@ -1,14 +1,13 @@
 package ch.bergturbenthal.marathontabelle.androidclient;
 
-import android.R;
 import android.app.Activity;
 import android.os.Bundle;
 import android.support.v4.app.ListFragment;
 import android.view.View;
 import android.widget.AbsListView;
 import android.widget.AdapterView;
-import android.widget.ArrayAdapter;
 import android.widget.ListView;
+import ch.bergturbenthal.marathontabelle.androidclient.data.DataProvider;
 import ch.bergturbenthal.marathontabelle.androidclient.dummy.DummyContent;
 
 public class MarathonListFragment extends ListFragment {
@@ -44,8 +43,9 @@ public class MarathonListFragment extends ListFragment {
 
   @Override
   public void onCreate(final Bundle savedInstanceState) {
+    final DataProvider dataProvider = new DataProvider(getActivity());
     super.onCreate(savedInstanceState);
-    setListAdapter(new ArrayAdapter<DummyContent.DummyItem>(getActivity(), R.layout.simple_list_item_activated_1, R.id.text1, DummyContent.ITEMS));
+    setListAdapter(new MarathonListAdapter(getActivity(), dataProvider.readSavedData()));
   }
 
   @Override

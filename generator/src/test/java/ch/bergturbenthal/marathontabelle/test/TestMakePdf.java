@@ -1,8 +1,8 @@
 package ch.bergturbenthal.marathontabelle.test;
 
 import java.io.File;
-import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
+import java.io.IOException;
 
 import org.joda.time.Duration;
 import org.joda.time.LocalTime;
@@ -11,6 +11,7 @@ import org.joda.time.format.DateTimeFormatter;
 import org.junit.Test;
 
 import ch.bergturbenthal.marathontabelle.generator.GeneratePdf;
+import ch.bergturbenthal.marathontabelle.model.MarathonData;
 import ch.bergturbenthal.marathontabelle.model.PhaseData;
 import ch.bergturbenthal.marathontabelle.model.TimeEntry;
 
@@ -21,7 +22,7 @@ public class TestMakePdf {
   private static final DateTimeFormatter TIME_PATTERN = DateTimeFormat.forPattern("HH:mm:ss 'Uhr'");
 
   @Test
-  public void generateTestPdf() throws FileNotFoundException, DocumentException {
+  public void generateTestPdf() throws DocumentException, IOException {
     final PhaseData phaseA = new PhaseData();
     phaseA.setStartTime(LocalTime.parse("12:24"));
     phaseA.setMaxTime(Duration.standardSeconds(60 * 22 + 17));
@@ -69,7 +70,11 @@ public class TestMakePdf {
     phaseE.getEntries().add(new TimeEntry(Integer.valueOf(6500), "Finish E"));
 
     final FileOutputStream os = new FileOutputStream(new File("target/test.pdf"));
-
-    new GeneratePdf().makePdf(os, phaseA, phaseD, phaseE);
+    try {
+      final MarathonData data = new MarathonData(phaseA, phaseD, phaseE);
+      new GeneratePdf().makePdf(os, data, true);
+    } finally {
+      os.close();
+    }
   }
 }
