@@ -3,11 +3,16 @@
  */
 package ch.bergturbenthal.marathontabelle.model;
 
-public class MarathonData {
+import java.io.Serializable;
+import java.util.UUID;
+
+public class MarathonData implements Serializable {
+  private static final long serialVersionUID = -6310780878868358493L;
   private String marathonName;
   private PhaseData phaseA;
   private PhaseData phaseD;
   private PhaseData phaseE;
+  private final String id = UUID.randomUUID().toString();
 
   public MarathonData() {
 
@@ -17,6 +22,15 @@ public class MarathonData {
     this.phaseA = phaseA;
     this.phaseD = phaseD;
     this.phaseE = phaseE;
+  }
+
+  /**
+   * Returns the id.
+   * 
+   * @return the id
+   */
+  public String getId() {
+    return id;
   }
 
   /**

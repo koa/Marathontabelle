@@ -6,8 +6,6 @@ import java.io.IOException;
 
 import org.joda.time.Duration;
 import org.joda.time.LocalTime;
-import org.joda.time.format.DateTimeFormat;
-import org.joda.time.format.DateTimeFormatter;
 import org.junit.Test;
 
 import ch.bergturbenthal.marathontabelle.generator.GeneratePdf;
@@ -18,9 +16,6 @@ import ch.bergturbenthal.marathontabelle.model.TimeEntry;
 import com.itextpdf.text.DocumentException;
 
 public class TestMakePdf {
-  private static final DateTimeFormatter DURATION_PATTERN = DateTimeFormat.forPattern("mm:ss");
-  private static final DateTimeFormatter TIME_PATTERN = DateTimeFormat.forPattern("HH:mm:ss 'Uhr'");
-
   @Test
   public void generateTestPdf() throws DocumentException, IOException {
     final PhaseData phaseA = new PhaseData();
@@ -72,7 +67,7 @@ public class TestMakePdf {
     final FileOutputStream os = new FileOutputStream(new File("target/test.pdf"));
     try {
       final MarathonData data = new MarathonData(phaseA, phaseD, phaseE);
-      new GeneratePdf().makePdf(os, data, true);
+      new GeneratePdf().makePdf(os, data, false, false, true);
     } finally {
       os.close();
     }

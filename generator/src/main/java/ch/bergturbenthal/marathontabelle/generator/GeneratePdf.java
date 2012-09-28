@@ -2,11 +2,15 @@ package ch.bergturbenthal.marathontabelle.generator;
 
 import java.io.OutputStream;
 import java.util.Collection;
+import java.util.LinkedHashMap;
+import java.util.Map;
+import java.util.Map.Entry;
 
 import org.joda.time.format.DateTimeFormat;
 import org.joda.time.format.DateTimeFormatter;
 
 import ch.bergturbenthal.marathontabelle.model.MarathonData;
+import ch.bergturbenthal.marathontabelle.model.Phase;
 import ch.bergturbenthal.marathontabelle.model.PhaseData;
 import ch.bergturbenthal.marathontabelle.model.TimeEntry;
 
@@ -24,21 +28,44 @@ import com.itextpdf.text.pdf.PdfPTable;
 import com.itextpdf.text.pdf.PdfWriter;
 
 public class GeneratePdf {
+  /**
+   * 
+   */
+  private static final Font TITLE_FONT = new Font(Font.FontFamily.HELVETICA, 40);
+  /**
+   * 
+   */
+  private static final Font SMALL_FONT = new Font(Font.FontFamily.HELVETICA, 8);
+  /**
+   * 
+   */
+  private static final Font DATA_FONT = new Font(Font.FontFamily.HELVETICA, 24);
   private static final DateTimeFormatter DURATION_PATTERN = DateTimeFormat.forPattern("mm:ss");
   private static final DateTimeFormatter TIME_PATTERN = DateTimeFormat.forPattern("HH:mm:ss 'Uhr'");
 
-  public void makePdf(final OutputStream out, final MarathonData data, final boolean makeSmallSheets) {
+  public void makePdf(final OutputStream out, final MarathonData data, final boolean makeSmallSheetsA, final boolean makeSmallSheetsD,
+                      final boolean makeSmallSheetsE) {
     try {
       final Document document = new Document(PageSize.A4);
       PdfWriter.getInstance(document, out);
       document.open();
       appendPhaseOverview(document, data.getPhaseA(), "Phase A");
-      appendPhaseOverview(document, data.getPhaseA(), "Phase D");
+      appendPhaseOverview(document, data.getPhaseD(), "Phase D");
       document.newPage();
       appendPhaseOverview(document, data.getPhaseE(), "Phase E");
-      if (makeSmallSheets) {
+      final Map<Phase, PhaseData> smallSheetPhase = new LinkedHashMap<Phase, PhaseData>();
+      if (makeSmallSheetsA) {
+        smallSheetPhase.put(Phase.A, data.getPhaseA());
+      }
+      if (makeSmallSheetsD) {
+        smallSheetPhase.put(Phase.D, data.getPhaseD());
+      }
+      if (makeSmallSheetsE) {
+        smallSheetPhase.put(Phase.E, data.getPhaseE());
+      }
+      if (smallSheetPhase.size() > 0) {
         document.newPage();
-        appendSmallSheets(document, data.getPhaseE());
+        appendSmallSheets(document, smallSheetPhase);
       }
       document.close();
     } catch (final DocumentException e) {
@@ -63,79 +90,68 @@ public class GeneratePdf {
    * @param phase
    * @throws DocumentException
    */
-  private void appendSmallSheets(final Document document, final PhaseData phase) throws DocumentException {
-    final Collection<TimeEntry> entries = phase.getEntries();
-    if (entries == null || entries.size() == 0)
-      return;
-    final Double minMillisPerMeter =
-                                     phase.getMinTime() != null ? Double.valueOf(phase.getMinTime().getMillis()
-                                                                                 / (double) phase.getLength().intValue()) : null;
-    final Double maxMillisPerMeter =
-                                     phase.getMaxTime() != null ? Double.valueOf(phase.getMaxTime().getMillis()
-                                                                                 / (double) phase.getLength().intValue()) : null;
-
-    final Font dataFont = new Font(Font.FontFamily.HELVETICA, 24);
-    final Font smallFont = new Font(Font.FontFamily.HELVETICA, 8);
-    final Font titleFont = new Font(Font.FontFamily.HELVETICA, 40);
-
+  private void appendSmallSheets(final Document document, final Map<Phase, PhaseData> phases) throws DocumentException {
     final PdfPTable table = new PdfPTable(3);
     table.setWidthPercentage(100);
     // table.getDefaultCell().setBorder(0);
     int cellNr = 0;
-    for (final TimeEntry entry : entries) {
-      final String comment = entry.getComment();
-      if (comment == null)
-        continue;
-
-      final PdfPTable entryTable = new PdfPTable(new float[] { 1, 2 });
-      entryTable.getDefaultCell().setBorder(0);
-      // entryTable.getDefaultCell().setMinimumHeight(document.getPageSize().getHeight()
-      // / 3);
-      final PdfPCell nrCell = new PdfPCell();
-      nrCell.setColspan(2);
-      nrCell.setHorizontalAlignment(PdfPCell.ALIGN_CENTER);
-      nrCell.setPhrase(new Phrase(Integer.toString(++cellNr), smallFont));
-      nrCell.setMinimumHeight(50);
-      nrCell.setBorder(0);
-      entryTable.addCell(nrCell);
-
-      final PdfPCell commentCell = new PdfPCell();
-      commentCell.setColspan(2);
-      commentCell.setHorizontalAlignment(PdfPCell.ALIGN_CENTER);
-      commentCell.setPhrase(new Phrase(comment, titleFont));
-      commentCell.setMinimumHeight(80);
-      commentCell.setBorder(0);
-      entryTable.addCell(commentCell);
-
-      if (entry.getPosition() != null) {
-        entryTable.getDefaultCell().setMinimumHeight(40);
-        entryTable.getDefaultCell().setVerticalAlignment(PdfPCell.ALIGN_BOTTOM);
-        entryTable.getDefaultCell().setBorder(PdfPCell.BOTTOM);
-        entryTable.addCell("Strecke");
-        appendCell(entryTable, entry.getPosition() + " m", dataFont);
-        if (minMillisPerMeter != null) {
-          entryTable.addCell("min. ");
-          appendCell(entryTable, DURATION_PATTERN.print((long) (entry.getPosition().intValue() * minMillisPerMeter.doubleValue())), dataFont);
-        } else {
-          entryTable.addCell("");
-          entryTable.completeRow();
+    for (final Entry<Phase, PhaseData> phaseEntry : phases.entrySet()) {
+      final PhaseData phase = phaseEntry.getValue();
+      if (phases.size() > 0) {
+        String phaseName = null;
+        switch (phaseEntry.getKey()) {
+        case A:
+          phaseName = "Phase A";
+          break;
+        case D:
+          phaseName = "Phase D";
+          break;
+        case E:
+          phaseName = "Phase E";
+          break;
         }
-        if (maxMillisPerMeter != null) {
-          entryTable.addCell("max. ");
-          appendCell(entryTable, DURATION_PATTERN.print((long) (entry.getPosition().intValue() * maxMillisPerMeter.doubleValue())), dataFont);
-        } else {
-          entryTable.addCell("");
-          entryTable.completeRow();
-        }
-      } else {
-        entryTable.getDefaultCell().setMinimumHeight(120);
-        entryTable.addCell("");
-        entryTable.completeRow();
+        table.addCell(makeEntryTable(++cellNr, phaseName, null, null));
       }
-      table.addCell(entryTable);
+
+      final Collection<TimeEntry> entries = phase.getEntries();
+      if (entries == null || entries.size() == 0)
+        continue;
+      final Double minMillisPerMeter =
+                                       phase.getMinTime() != null ? Double.valueOf(phase.getMinTime().getMillis()
+                                                                                   / (double) phase.getLength().intValue()) : null;
+      final Double maxMillisPerMeter =
+                                       phase.getMaxTime() != null ? Double.valueOf(phase.getMaxTime().getMillis()
+                                                                                   / (double) phase.getLength().intValue()) : null;
+
+      for (final TimeEntry entry : entries) {
+        final String comment = entry.getComment();
+        if (comment == null)
+          continue;
+
+        // entryTable.getDefaultCell().setMinimumHeight(document.getPageSize().getHeight()
+        // / 3);
+        String[] lineTitles = null;
+        String[] lineValues = null;
+        if (entry.getPosition() != null) {
+          lineTitles = new String[3];
+          lineValues = new String[3];
+          lineTitles[0] = "Strecke";
+          lineValues[0] = entry.getPosition() + " m";
+          if (minMillisPerMeter != null) {
+            lineTitles[1] = "min. ";
+            lineValues[1] = DURATION_PATTERN.print((long) (entry.getPosition().intValue() * minMillisPerMeter.doubleValue()));
+          }
+          if (maxMillisPerMeter != null) {
+            lineTitles[2] = "max. ";
+            lineValues[2] = DURATION_PATTERN.print((long) (entry.getPosition().intValue() * maxMillisPerMeter.doubleValue()));
+          }
+        }
+        table.addCell(makeEntryTable(++cellNr, comment, lineTitles, lineValues));
+      }
     }
     table.completeRow();
-    document.add(table);
+    if (cellNr > 0)
+      document.add(table);
 
   }
 
@@ -276,6 +292,51 @@ public class GeneratePdf {
       table.setSpacingAfter(5);
       document.add(table);
     }
+  }
+
+  private PdfPTable makeEntryTable(final int nr, final String comment, final String[] lineTitles, final String[] lineValues) {
+    final PdfPTable entryTable = new PdfPTable(new float[] { 1, 2 });
+    entryTable.getDefaultCell().setBorder(0);
+    {
+      final PdfPCell nrCell = new PdfPCell();
+      final String headString = Integer.toString(nr);
+      nrCell.setColspan(2);
+      nrCell.setHorizontalAlignment(PdfPCell.ALIGN_CENTER);
+      nrCell.setPhrase(new Phrase(headString, SMALL_FONT));
+      nrCell.setMinimumHeight(50);
+      nrCell.setBorder(0);
+      entryTable.addCell(nrCell);
+    }
+    {
+      final PdfPCell commentCell = new PdfPCell();
+      commentCell.setColspan(2);
+      commentCell.setHorizontalAlignment(PdfPCell.ALIGN_CENTER);
+      commentCell.setPhrase(new Phrase(comment, TITLE_FONT));
+      commentCell.setMinimumHeight(80);
+      commentCell.setBorder(0);
+      entryTable.addCell(commentCell);
+    }
+    if (lineTitles != null && lineValues != null) {
+      entryTable.getDefaultCell().setMinimumHeight(40);
+      entryTable.getDefaultCell().setVerticalAlignment(PdfPCell.ALIGN_BOTTOM);
+      entryTable.getDefaultCell().setBorder(PdfPCell.BOTTOM);
+
+      for (int i = 0; i < 3; i++) {
+        if (lineTitles[i] != null || lineValues[i] != null) {
+          entryTable.addCell(lineTitles[i]);
+          appendCell(entryTable, lineValues[i], DATA_FONT);
+        } else {
+          entryTable.addCell("");
+          entryTable.completeRow();
+        }
+      }
+
+    } else {
+      entryTable.getDefaultCell().setMinimumHeight(120);
+      entryTable.addCell("");
+      entryTable.completeRow();
+    }
+    return entryTable;
   }
 
 }

@@ -1,6 +1,9 @@
 package ch.bergturbenthal.marathontabelle.model;
 
-public class TimeEntry {
+import java.io.Serializable;
+
+public class TimeEntry implements Serializable {
+  private static final long serialVersionUID = 4672068338831349222L;
   private Integer position;
   private String comment;
 
