@@ -6,13 +6,16 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.TextView;
-import ch.bergturbenthal.marathontabelle.androidclient.dummy.DummyContent;
+import ch.bergturbenthal.marathontabelle.androidclient.data.DataProvider;
+import ch.bergturbenthal.marathontabelle.model.MarathonData;
 
 public class MarathonDetailFragment extends Fragment {
 
   public static final String ARG_ITEM_ID = "item_id";
 
-  DummyContent.DummyItem mItem;
+  private DataProvider dataProvider;
+
+  private MarathonData mItem;
 
   public MarathonDetailFragment() {
   }
@@ -20,8 +23,9 @@ public class MarathonDetailFragment extends Fragment {
   @Override
   public void onCreate(final Bundle savedInstanceState) {
     super.onCreate(savedInstanceState);
+    dataProvider = new DataProvider(getActivity());
     if (getArguments().containsKey(ARG_ITEM_ID)) {
-      mItem = DummyContent.ITEM_MAP.get(getArguments().getString(ARG_ITEM_ID));
+      mItem = dataProvider.readData(getArguments().getString(ARG_ITEM_ID));
     }
   }
 
@@ -29,7 +33,7 @@ public class MarathonDetailFragment extends Fragment {
   public View onCreateView(final LayoutInflater inflater, final ViewGroup container, final Bundle savedInstanceState) {
     final View rootView = inflater.inflate(R.layout.fragment_marathon_detail, container, false);
     if (mItem != null) {
-      ((TextView) rootView.findViewById(R.id.marathon_detail)).setText(mItem.content);
+      ((TextView) rootView.findViewById(R.id.marathon_detail)).setText(mItem.getMarathonName());
     }
     return rootView;
   }

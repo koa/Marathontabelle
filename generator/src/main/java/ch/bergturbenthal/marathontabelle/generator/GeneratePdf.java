@@ -245,6 +245,8 @@ public class GeneratePdf {
     for (final TimeEntry entry : phase.getEntries()) {
       if (entry.getPosition() == null)
         continue;
+      if (entry.isOnlySmallSheet())
+        continue;
       appendCell(table, entry.getPosition() + " m", font);
       if (minMillisPerMeter != null) {
         appendCell(table, DURATION_PATTERN.print((long) (entry.getPosition().intValue() * minMillisPerMeter.doubleValue())), font);

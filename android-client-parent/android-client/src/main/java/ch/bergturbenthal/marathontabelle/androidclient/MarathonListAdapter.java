@@ -3,8 +3,6 @@
  */
 package ch.bergturbenthal.marathontabelle.androidclient;
 
-import java.util.ArrayList;
-import java.util.Collection;
 import java.util.List;
 
 import android.content.Context;
@@ -23,16 +21,13 @@ import ch.bergturbenthal.marathontabelle.model.MarathonData;
  */
 final class MarathonListAdapter extends BaseAdapter {
   private final List<MarathonData> data;
-  private final Context context;
   private final LayoutInflater inflater;
   private final Drawable okIcon;
 
-  MarathonListAdapter(final Context context, final Collection<MarathonData> data) {
-    this.context = context;
-    this.data = new ArrayList<MarathonData>(data);
+  MarathonListAdapter(final Context context, final List<MarathonData> marathonList) {
+    data = marathonList;
     inflater = (LayoutInflater) context.getSystemService(Context.LAYOUT_INFLATER_SERVICE);
     okIcon = context.getResources().getDrawable(R.drawable.ic_ok);
-
   }
 
   @Override
@@ -69,6 +64,14 @@ final class MarathonListAdapter extends BaseAdapter {
     iconView.setImageDrawable(okIcon);
 
     return view;
+  }
+
+  public void replaceData(final List<MarathonData> list) {
+    data.clear();
+    for (final MarathonData marathonData : list) {
+      data.add(marathonData);
+    }
+    notifyDataSetChanged();
   }
 
 }
