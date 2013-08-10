@@ -2,7 +2,7 @@ package ch.bergturbenthal.marathontabelle.model;
 
 import java.io.Serializable;
 import java.util.ArrayList;
-import java.util.Collection;
+import java.util.List;
 
 import org.joda.time.Duration;
 import org.joda.time.LocalTime;
@@ -14,9 +14,9 @@ public class PhaseData implements Serializable {
   private Duration minTime;
   private Duration maxTime;
   private Double velocity;
-  private Collection<TimeEntry> entries = new ArrayList<TimeEntry>();
+  private List<TimeEntry> entries = new ArrayList<TimeEntry>();
 
-  public Collection<TimeEntry> getEntries() {
+  public List<TimeEntry> getEntries() {
     return entries;
   }
 
@@ -43,7 +43,7 @@ public class PhaseData implements Serializable {
   public void setDefaultPoints() {
     if (length != null) {
       entries = new ArrayList<TimeEntry>();
-      for (int i = 1; i < length.intValue() / 1000; i += 1) {
+      for (int i = 1; i <= (length.intValue() - 1) / 1000; i += 1) {
         final TimeEntry e = new TimeEntry();
         e.setPosition(Integer.valueOf(i * 1000));
         e.setComment("km" + i);
@@ -56,7 +56,7 @@ public class PhaseData implements Serializable {
     }
   }
 
-  public void setEntries(final Collection<TimeEntry> entries) {
+  public void setEntries(final List<TimeEntry> entries) {
     this.entries = entries;
   }
 

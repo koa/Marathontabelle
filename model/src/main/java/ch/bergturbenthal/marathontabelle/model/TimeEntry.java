@@ -22,6 +22,7 @@ public class TimeEntry implements Serializable {
   }
 
   private Integer position;
+
   private String comment;
 
   private boolean onlySmallSheet;
