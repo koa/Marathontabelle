@@ -1,0 +1,30 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+	<modelVersion>4.0.0</modelVersion>
+	<parent>
+		<groupId>ch.berg-turbenthal.parent</groupId>
+		<artifactId>parent</artifactId>
+		<version>0.0.10-SNAPSHOT</version>
+	</parent>
+	<groupId>ch.berg-turbenthal.marathontabelle</groupId>
+	<artifactId>marathontabelle</artifactId>
+	<version>0.0.1-SNAPSHOT</version>
+	<repositories>
+		<repository>
+			<id>berg-turbenthal-snapshots</id>
+			<name>Neptun-snapshots</name>
+			<url>http://neptun.berg-turbenthal.ch/nexus/content/repositories/snapshots/</url>
+		</repository>
+		<repository>
+			<id>berg-turbenthal-releases</id>
+			<name>Neptun-releases</name>
+			<url>http://neptun.berg-turbenthal.ch/nexus/content/repositories/releases/</url>
+		</repository>
+	</repositories>
+	<packaging>pom</packaging>
+	<modules>
+	  <module>model</module>
+	  <module>generator</module>
+	  <module>android-client-parent</module>
+	</modules>
+</project>

@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <string name="hello">Hello android-client!</string>
+    <string name="app_name">android-client</string>
+    <string name="title_marathon_detail">Marathon Detail</string>
+    <string name="title_marathon_list">Marathons</string>
+
+</resources>
