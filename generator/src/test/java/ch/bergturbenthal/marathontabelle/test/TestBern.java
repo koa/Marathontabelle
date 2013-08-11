@@ -22,7 +22,7 @@ import com.itextpdf.text.DocumentException;
  * TODO: add type comment.
  * 
  */
-public class Bern {
+public class TestBern {
 
   @Test
   public void makeAndrea() throws DocumentException, IOException {

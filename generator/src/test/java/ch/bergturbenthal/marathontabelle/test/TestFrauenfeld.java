@@ -21,7 +21,7 @@ import com.itextpdf.text.DocumentException;
  * TODO: add type comment.
  * 
  */
-public class Frauenfeld {
+public class TestFrauenfeld {
 
   @Test
   public void makeAndrea() throws DocumentException, IOException {
