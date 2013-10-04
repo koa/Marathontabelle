@@ -126,7 +126,7 @@ public class MyVaadinUI extends UI {
 			@Override
 			public InputStream getStream() {
 				final ByteArrayOutputStream os = new ByteArrayOutputStream();
-				new GeneratePdf().makePdf(os, marathonData, phaseEss.getValue().booleanValue(), phaseDss.getValue().booleanValue(), phaseEss.getValue().booleanValue());
+				new GeneratePdf().makePdf(os, marathonData, phaseAss.getValue().booleanValue(), phaseDss.getValue().booleanValue(), phaseEss.getValue().booleanValue());
 				return new ByteArrayInputStream(os.toByteArray());
 			}
 		}, makeOutputFilename());
