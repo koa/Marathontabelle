@@ -13,7 +13,7 @@ import javax.servlet.annotation.WebServlet;
 
 import ch.bergturbenthal.marathontabelle.generator.GeneratePdf;
 import ch.bergturbenthal.marathontabelle.model.MarathonData;
-import ch.bergturbenthal.marathontabelle.model.PhaseData;
+import ch.bergturbenthal.marathontabelle.model.PhaseDataCompetition;
 import ch.bergturbenthal.marathontabelle.model.TimeEntry;
 import ch.bergturbenthal.marathontabelle.web.binding.DurationFieldFactory;
 
@@ -68,7 +68,7 @@ public class MyVaadinUI extends UI {
 		mapper.registerModule(new JodaModule());
 	}
 
-	private void container2Model(final BeanItemContainer<TimeEntry> itemContainer, final PhaseData phaseData) {
+	private void container2Model(final BeanItemContainer<TimeEntry> itemContainer, final PhaseDataCompetition phaseData) {
 		final List<TimeEntry> entries = phaseData.getEntries();
 		entries.clear();
 		entries.addAll(itemContainer.getItemIds());
@@ -171,7 +171,7 @@ public class MyVaadinUI extends UI {
 			if (file.exists())
 				return mapper.readValue(file, MarathonData.class);
 
-			return new MarathonData(new PhaseData(), new PhaseData(), new PhaseData());
+			return new MarathonData(new PhaseDataCompetition(), new PhaseDataCompetition(), new PhaseDataCompetition());
 		} catch (final IOException e) {
 			throw new RuntimeException("Cannot load " + file, e);
 		}
@@ -181,7 +181,7 @@ public class MyVaadinUI extends UI {
 		return "marathon-" + System.currentTimeMillis() + ".pdf";
 	}
 
-	private void model2Container(final PhaseData phaseData, final BeanItemContainer<TimeEntry> itemContainer) {
+	private void model2Container(final PhaseDataCompetition phaseData, final BeanItemContainer<TimeEntry> itemContainer) {
 		itemContainer.removeAllItems();
 		itemContainer.addAll(phaseData.getEntries());
 	}
@@ -194,9 +194,9 @@ public class MyVaadinUI extends UI {
 		}
 	}
 
-	private Runnable showPhaseData(final FormLayout layout, final PhaseData phaseData) {
+	private Runnable showPhaseData(final FormLayout layout, final PhaseDataCompetition phaseData) {
 		layout.setMargin(true);
-		final BeanFieldGroup<PhaseData> binder = new BeanFieldGroup<PhaseData>(PhaseData.class);
+		final BeanFieldGroup<PhaseDataCompetition> binder = new BeanFieldGroup<PhaseDataCompetition>(PhaseDataCompetition.class);
 		final DurationFieldFactory fieldFactory = new DurationFieldFactory();
 		binder.setFieldFactory(fieldFactory);
 		binder.setItemDataSource(phaseData);

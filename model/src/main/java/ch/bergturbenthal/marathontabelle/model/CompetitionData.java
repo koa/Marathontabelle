@@ -1,31 +1,31 @@
 package ch.bergturbenthal.marathontabelle.model;
 
 public class CompetitionData {
-  private PhaseData phaseA;
-  private PhaseData phaseD;
-  private PhaseData phaseE;
+  private PhaseDataCompetition phaseA;
+  private PhaseDataCompetition phaseD;
+  private PhaseDataCompetition phaseE;
 
-  public PhaseData getPhaseA() {
+  public PhaseDataCompetition getPhaseA() {
     return phaseA;
   }
 
-  public PhaseData getPhaseD() {
+  public PhaseDataCompetition getPhaseD() {
     return phaseD;
   }
 
-  public PhaseData getPhaseE() {
+  public PhaseDataCompetition getPhaseE() {
     return phaseE;
   }
 
-  public void setPhaseA(final PhaseData phaseA) {
+  public void setPhaseA(final PhaseDataCompetition phaseA) {
     this.phaseA = phaseA;
   }
 
-  public void setPhaseD(final PhaseData phaseD) {
+  public void setPhaseD(final PhaseDataCompetition phaseD) {
     this.phaseD = phaseD;
   }
 
-  public void setPhaseE(final PhaseData phaseE) {
+  public void setPhaseE(final PhaseDataCompetition phaseE) {
     this.phaseE = phaseE;
   }
 }

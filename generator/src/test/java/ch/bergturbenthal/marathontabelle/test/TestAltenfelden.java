@@ -6,14 +6,18 @@ package ch.bergturbenthal.marathontabelle.test;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.util.Arrays;
 
 import org.joda.time.Duration;
 import org.joda.time.LocalTime;
 import org.junit.Test;
 
 import ch.bergturbenthal.marathontabelle.generator.GeneratePdf;
+import ch.bergturbenthal.marathontabelle.model.DriverData;
 import ch.bergturbenthal.marathontabelle.model.MarathonData;
-import ch.bergturbenthal.marathontabelle.model.PhaseData;
+import ch.bergturbenthal.marathontabelle.model.Phase;
+import ch.bergturbenthal.marathontabelle.model.PhaseDataCategory;
+import ch.bergturbenthal.marathontabelle.model.PhaseDataCompetition;
 import ch.bergturbenthal.marathontabelle.model.TimeEntry;
 
 import com.itextpdf.text.DocumentException;
@@ -26,24 +30,35 @@ public class TestAltenfelden {
   @Test
   public void makeChristof() throws DocumentException, IOException {
     final MarathonData data = makeData();
-    data.getPhaseA().setStartTime(LocalTime.parse("08:45"));
-    data.getPhaseD().setStartTime(LocalTime.parse("09:06"));
-    data.getPhaseE().setStartTime(LocalTime.parse("09:39"));
+    final DriverData driverData = new DriverData();
+    data.getDrivers().put("Christof König", driverData);
+    driverData.getStartTimes().put(Phase.A, LocalTime.parse("08:45"));
+    driverData.getStartTimes().put(Phase.D, LocalTime.parse("09:06"));
+    driverData.getStartTimes().put(Phase.E, LocalTime.parse("09:39"));
+    driverData.getSmallSheets().addAll(Arrays.asList(Phase.values()));
+    driverData.setCategory("Pony 2 Spänner");
 
     final FileOutputStream os = new FileOutputStream(new File("target/christof-altenfelden.pdf"));
     try {
-      new GeneratePdf().makePdf(os, data, true, true, true);
+      new GeneratePdf().makePdf(os, data, "Christof König");
     } finally {
       os.close();
     }
   }
 
   private MarathonData makeData() {
-    final PhaseData phaseA = new PhaseData();
-    phaseA.setMaxTime(Duration.standardSeconds(60 * 26 + 59));
-    phaseA.setMinTime(phaseA.getMaxTime().minus(Duration.standardMinutes(2)));
+    final MarathonData data = new MarathonData();
+    final String category = "Pony 2 Spänner";
+    data.getCategories().add(category);
+    final PhaseDataCompetition phaseA = new PhaseDataCompetition();
+    data.getCompetitionPhases().put(Phase.A, phaseA);
+    final PhaseDataCategory phaseADataCategory = new PhaseDataCategory();
+    phaseA.getCategoryTimes().put(category, phaseADataCategory);
+    phaseADataCategory.setMaxTime(Duration.standardSeconds(60 * 26 + 59));
+    phaseADataCategory.setMinTime(phaseADataCategory.getMaxTime().minus(Duration.standardMinutes(2)));
+    phaseA.setPhaseName("Phase A");
     phaseA.setLength(6300);
-    phaseA.setVelocity(Double.valueOf(14));
+    phaseADataCategory.setVelocity(Double.valueOf(14));
     phaseA.getEntries().add(new TimeEntry(null, "T1"));
     phaseA.getEntries().add(new TimeEntry(Integer.valueOf(1000), "km1"));
     phaseA.getEntries().add(new TimeEntry(Integer.valueOf(2000), "T2"));
@@ -59,19 +74,26 @@ public class TestAltenfelden {
     phaseA.getEntries().add(new TimeEntry(Integer.valueOf(6000), "km6"));
     phaseA.getEntries().add(new TimeEntry(Integer.valueOf(6300), "Ziel"));
 
-    final PhaseData phaseD = new PhaseData();
+    final PhaseDataCompetition phaseD = new PhaseDataCompetition();
+    data.getCompetitionPhases().put(Phase.D, phaseD);
+    final PhaseDataCategory phaseDDataCategory = new PhaseDataCategory();
+    phaseD.getCategoryTimes().put(category, phaseDDataCategory);
     // phaseD.setStartTime(LocalTime.parse("11:20"));
-    phaseD.setMaxTime(Duration.standardSeconds(60 * 8 + 24));
+    phaseDDataCategory.setMaxTime(Duration.standardSeconds(60 * 8 + 24));
+    phaseD.setPhaseName("Transfer");
     phaseD.setLength(700);
-    phaseD.setVelocity(Double.valueOf(5));
+    phaseDDataCategory.setVelocity(Double.valueOf(5));
     phaseD.getEntries().add(new TimeEntry(null, "T1"));
 
-    final PhaseData phaseE = new PhaseData();
-    // phaseE.setStartTime(LocalTime.parse("11:35"));
+    final PhaseDataCompetition phaseE = new PhaseDataCompetition();
+    data.getCompetitionPhases().put(Phase.E, phaseE);
+    final PhaseDataCategory phaseEDataCategory = new PhaseDataCategory();
+    phaseE.getCategoryTimes().put(category, phaseEDataCategory);
+    phaseE.setPhaseName("Phase E");
     phaseE.setLength(Integer.valueOf(9000));
-    phaseE.setMaxTime(Duration.standardSeconds(60 * 41 + 32));
-    phaseE.setMinTime(phaseE.getMaxTime().minus(Duration.standardMinutes(3)));
-    phaseE.setVelocity(Double.valueOf(13));
+    phaseEDataCategory.setMaxTime(Duration.standardSeconds(60 * 41 + 32));
+    phaseEDataCategory.setMinTime(phaseEDataCategory.getMaxTime().minus(Duration.standardMinutes(3)));
+    phaseEDataCategory.setVelocity(Double.valueOf(13));
     phaseE.getEntries().add(TimeEntry.makePositionedEntrySmallSheetOnly(800, "H1"));
     phaseE.getEntries().add(new TimeEntry(Integer.valueOf(1000), "km1"));
     phaseE.getEntries().add(new TimeEntry(null, "T1"));
@@ -94,7 +116,6 @@ public class TestAltenfelden {
     phaseE.getEntries().add(new TimeEntry(Integer.valueOf(8700), "-300m"));
     phaseE.getEntries().add(new TimeEntry(Integer.valueOf(9000), "Finish E"));
 
-    final MarathonData data = new MarathonData(phaseA, phaseD, phaseE);
     return data;
   }
 
