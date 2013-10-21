@@ -328,25 +328,29 @@ public class GeneratePdf {
 
   public void makePdf(final OutputStream out, final MarathonData data, final String driver) {
     try {
+      final DriverData driverData = data.getDrivers().get(driver);
       final String now = DateTimeFormat.mediumDateTime().print(System.currentTimeMillis());
       final Document document = new Document(PageSize.A4);
       final PdfWriter writer = PdfWriter.getInstance(document, out);
-      writer.setPageEvent(new PdfPageEventHelper() {
+      if (driverData != null && driverData.getCategory() != null) {
+        final String category = driverData.getCategory();
+        writer.setPageEvent(new PdfPageEventHelper() {
 
-        @Override
-        public void onEndPage(final PdfWriter writer, final Document document) {
-          final PdfContentByte cb = writer.getDirectContent();
-          ColumnText.showTextAligned(cb, Element.ALIGN_LEFT, new Phrase(driver + " - " + data.getDrivers().get(driver).getCategory() + " - " + now,
-                                                                        SMALL_FONT), document.leftMargin() - 1, document.top() + 30, 0);
-        }
-      });
+          @Override
+          public void onEndPage(final PdfWriter writer, final Document document) {
+            final PdfContentByte cb = writer.getDirectContent();
+            ColumnText.showTextAligned(cb, Element.ALIGN_LEFT, new Phrase(driver + " - " + category + " - " + now, SMALL_FONT),
+                                       document.leftMargin() - 1, document.top() + 30, 0);
+          }
+        });
 
-      document.open();
-      appendPhaseOverview(document, data, Phase.A, driver);
-      appendPhaseOverview(document, data, Phase.D, driver);
-      document.newPage();
-      appendPhaseOverview(document, data, Phase.E, driver);
-      appendSmallSheets(document, data, driver);
+        document.open();
+        appendPhaseOverview(document, data, Phase.A, driver);
+        appendPhaseOverview(document, data, Phase.D, driver);
+        document.newPage();
+        appendPhaseOverview(document, data, Phase.E, driver);
+        appendSmallSheets(document, data, driver);
+      }
       document.close();
     } catch (final DocumentException e) {
       throw new RuntimeException(e);
