@@ -329,10 +329,10 @@ public class GeneratePdf {
   public void makePdf(final OutputStream out, final MarathonData data, final String driver) {
     try {
       final DriverData driverData = data.getDrivers().get(driver);
-      final String now = DateTimeFormat.mediumDateTime().print(System.currentTimeMillis());
-      final Document document = new Document(PageSize.A4);
-      final PdfWriter writer = PdfWriter.getInstance(document, out);
       if (driverData != null && driverData.getCategory() != null) {
+        final String now = DateTimeFormat.mediumDateTime().print(System.currentTimeMillis());
+        final Document document = new Document(PageSize.A4);
+        final PdfWriter writer = PdfWriter.getInstance(document, out);
         final String category = driverData.getCategory();
         writer.setPageEvent(new PdfPageEventHelper() {
 
@@ -350,8 +350,8 @@ public class GeneratePdf {
         document.newPage();
         appendPhaseOverview(document, data, Phase.E, driver);
         appendSmallSheets(document, data, driver);
+        document.close();
       }
-      document.close();
     } catch (final DocumentException e) {
       throw new RuntimeException(e);
     }

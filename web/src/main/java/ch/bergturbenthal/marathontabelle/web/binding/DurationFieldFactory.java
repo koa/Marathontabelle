@@ -21,24 +21,24 @@ public class DurationFieldFactory extends DefaultFieldGroupFieldFactory {
 	private static final DateTimeFormatter TIME_PATTERN = DateTimeFormat.forPattern("HH:mm").withZoneUTC();
 
 	@Override
-	public <T extends Field> T createField(Class<?> type, Class<T> fieldType) {
+	public <T extends Field> T createField(final Class<?> type, final Class<T> fieldType) {
 
 		if (type.isAssignableFrom(Duration.class)) {
-			TextField textField = new TextField();
+			final TextField textField = new TextField();
 			textField.setConverter(new Converter<String, Duration>() {
 
 				@Override
-				public Duration convertToModel(String value, Class<? extends Duration> targetType, Locale locale) throws ConversionException {
+				public Duration convertToModel(final String value, final Class<? extends Duration> targetType, final Locale locale) throws ConversionException {
 					if (value == null || value.trim().length() == 0)
 						return null;
-					Matcher matcher = DURATION_REGEX_PATTERN.matcher(value);
+					final Matcher matcher = DURATION_REGEX_PATTERN.matcher(value);
 					if (!matcher.matches())
 						throw new Validator.InvalidValueException("Dauer muss als mm:ss eingegeben werden");
 					return Duration.standardSeconds(Integer.parseInt(matcher.group(1)) * 60 + Integer.parseInt(matcher.group(2)));
 				}
 
 				@Override
-				public String convertToPresentation(Duration value, Class<? extends String> targetType, Locale locale) throws ConversionException {
+				public String convertToPresentation(final Duration value, final Class<? extends String> targetType, final Locale locale) throws ConversionException {
 					if (value == null)
 						return "";
 					return DURATION_PATTERN.print(value.getMillis());
@@ -54,30 +54,26 @@ public class DurationFieldFactory extends DefaultFieldGroupFieldFactory {
 					return String.class;
 				}
 			});
+			textField.setWidth("4em");
 			return (T) textField;
 		}
 		if (type.isAssignableFrom(LocalTime.class)) {
-			TextField textField = new TextField();
+			final TextField textField = new TextField();
 			textField.setConverter(new Converter<String, LocalTime>() {
 
 				@Override
-				public Class<String> getPresentationType() {
-					return String.class;
-				}
-
-				@Override
-				public LocalTime convertToModel(String value, Class<? extends LocalTime> targetType, Locale locale) throws com.vaadin.data.util.converter.Converter.ConversionException {
+				public LocalTime convertToModel(final String value, final Class<? extends LocalTime> targetType, final Locale locale) throws ConversionException {
 					if (value == null || value.trim().length() == 0)
 						return null;
 					try {
 						return LocalTime.parse(value, TIME_PATTERN);
-					} catch (IllegalArgumentException ex) {
+					} catch (final IllegalArgumentException ex) {
 						throw new Validator.InvalidValueException("Uhrzeit muss als hh:mm eingegeben werden");
 					}
 				}
 
 				@Override
-				public String convertToPresentation(LocalTime value, Class<? extends String> targetType, Locale locale) throws com.vaadin.data.util.converter.Converter.ConversionException {
+				public String convertToPresentation(final LocalTime value, final Class<? extends String> targetType, final Locale locale) throws ConversionException {
 					if (value == null)
 						return "";
 					return TIME_PATTERN.print(value.getMillisOfDay());
@@ -87,7 +83,13 @@ public class DurationFieldFactory extends DefaultFieldGroupFieldFactory {
 				public Class<LocalTime> getModelType() {
 					return LocalTime.class;
 				}
+
+				@Override
+				public Class<String> getPresentationType() {
+					return String.class;
+				}
 			});
+			textField.setWidth("4em");
 			return (T) textField;
 		}
 
