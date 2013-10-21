@@ -232,7 +232,8 @@ public class GeneratePdf {
         table.addCell("");
       if (maxMillisPerMeter != null) {
         appendCell(table, DURATION_PATTERN.print((long) (entry.getPosition().intValue() * maxMillisPerMeter.doubleValue())), font);
-      }
+      } else
+        table.addCell("");
       if (entry.getComment() != null)
         table.addCell(entry.getComment());
       table.completeRow();
