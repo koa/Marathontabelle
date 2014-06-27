@@ -34,27 +34,61 @@ import com.itextpdf.text.pdf.PdfWriter;
 
 public class GeneratePdf {
   /**
-   * 
+   *
    */
   private static final Font TITLE_FONT = new Font(Font.FontFamily.HELVETICA, 40);
   /**
-   * 
+   *
    */
   private static final Font SMALL_FONT = new Font(Font.FontFamily.HELVETICA, 8);
   /**
-   * 
+   *
    */
   private static final Font DATA_FONT = new Font(Font.FontFamily.HELVETICA, 24);
   private static final DateTimeFormatter DURATION_PATTERN = DateTimeFormat.forPattern("mm:ss");
   private static final DateTimeFormatter TIME_PATTERN = DateTimeFormat.forPattern("HH:mm:ss 'Uhr'");
+
+  public void makePdf(final OutputStream out, final MarathonData data, final String driver) {
+    try {
+      final DriverData driverData = data.getDrivers().get(driver);
+      if (driverData != null && driverData.getCategory() != null) {
+        final String now = DateTimeFormat.mediumDateTime().print(System.currentTimeMillis());
+        final Document document = new Document(PageSize.A4);
+        final PdfWriter writer = PdfWriter.getInstance(document, out);
+        final String category = driverData.getCategory();
+        writer.setPageEvent(new PdfPageEventHelper() {
+
+          @Override
+          public void onEndPage(final PdfWriter writer, final Document document) {
+            final PdfContentByte cb = writer.getDirectContent();
+            ColumnText.showTextAligned(cb, Element.ALIGN_LEFT, new Phrase(driver + " - " + category + " - " + now, SMALL_FONT),
+                                       document.leftMargin() - 1, document.top() + 30, 0);
+          }
+        });
+
+        document.open();
+        appendPhaseOverview(document, data, Phase.A, driver);
+        appendPhaseOverview(document, data, Phase.D, driver);
+        document.newPage();
+        appendPhaseOverview(document, data, Phase.E, driver);
+        appendSmallSheets(document, data, driver);
+        document.close();
+      }
+    } catch (final DocumentException e) {
+      throw new RuntimeException(e);
+    }
+
+  }
 
   private void appendCell(final PdfPTable table, final String text, final Font font) {
     table.addCell(new Phrase(text, font));
   }
 
   private void
-      appendPhaseOverview(final Document document, final MarathonData marathon, final Phase phase, final String driver) throws DocumentException {
+  appendPhaseOverview(final Document document, final MarathonData marathon, final Phase phase, final String driver) throws DocumentException {
     final PhaseDataCompetition phaseData = marathon.getCompetitionPhases().get(phase);
+    if (phaseData.getLength() == null)
+      return;
     final DriverData driverData = marathon.getDrivers().get(driver);
     final PhaseDataCategory phaseDataCategory = phaseData.getCategoryTimes().get(driverData.getCategory());
     appendTitle(document, phaseData.getPhaseName());
@@ -220,10 +254,17 @@ public class GeneratePdf {
     table.completeRow();
     table.getDefaultCell().setHorizontalAlignment(Element.ALIGN_RIGHT);
     final Font font = new Font(Font.FontFamily.HELVETICA, 32);
+    final StringBuilder commentBuilder = new StringBuilder();
     for (final TimeEntry entry : entries) {
-      if (entry.getPosition() == null)
-        continue;
       if (entry.isOnlySmallSheet())
+        continue;
+
+      if (entry.getComment() != null && !entry.getComment().isEmpty()) {
+        if (commentBuilder.length() > 0)
+          commentBuilder.append(", ");
+        commentBuilder.append(entry.getComment());
+      }
+      if (entry.getPosition() == null)
         continue;
       appendCell(table, entry.getPosition() + " m", font);
       if (minMillisPerMeter != null) {
@@ -234,8 +275,10 @@ public class GeneratePdf {
         appendCell(table, DURATION_PATTERN.print((long) (entry.getPosition().intValue() * maxMillisPerMeter.doubleValue())), font);
       } else
         table.addCell("");
-      if (entry.getComment() != null)
-        table.addCell(entry.getComment());
+      if (commentBuilder.length() > 0) {
+        table.addCell(commentBuilder.toString());
+        commentBuilder.setLength(0);
+      }
       table.completeRow();
     }
     if (table.getRows().size() < 2)
@@ -255,7 +298,7 @@ public class GeneratePdf {
   }
 
   private void
-      apppendTimeOverview(final Document document, final MarathonData marathon, final Phase phase, final String driver) throws DocumentException {
+  apppendTimeOverview(final Document document, final MarathonData marathon, final Phase phase, final String driver) throws DocumentException {
     final DriverData driverData = marathon.getDrivers().get(driver);
     final LocalTime startTime = driverData.getStartTimes().get(phase);
     final PhaseDataCompetition phaseData = marathon.getCompetitionPhases().get(phase);
@@ -325,38 +368,6 @@ public class GeneratePdf {
       entryTable.completeRow();
     }
     return entryTable;
-  }
-
-  public void makePdf(final OutputStream out, final MarathonData data, final String driver) {
-    try {
-      final DriverData driverData = data.getDrivers().get(driver);
-      if (driverData != null && driverData.getCategory() != null) {
-        final String now = DateTimeFormat.mediumDateTime().print(System.currentTimeMillis());
-        final Document document = new Document(PageSize.A4);
-        final PdfWriter writer = PdfWriter.getInstance(document, out);
-        final String category = driverData.getCategory();
-        writer.setPageEvent(new PdfPageEventHelper() {
-
-          @Override
-          public void onEndPage(final PdfWriter writer, final Document document) {
-            final PdfContentByte cb = writer.getDirectContent();
-            ColumnText.showTextAligned(cb, Element.ALIGN_LEFT, new Phrase(driver + " - " + category + " - " + now, SMALL_FONT),
-                                       document.leftMargin() - 1, document.top() + 30, 0);
-          }
-        });
-
-        document.open();
-        appendPhaseOverview(document, data, Phase.A, driver);
-        appendPhaseOverview(document, data, Phase.D, driver);
-        document.newPage();
-        appendPhaseOverview(document, data, Phase.E, driver);
-        appendSmallSheets(document, data, driver);
-        document.close();
-      }
-    } catch (final DocumentException e) {
-      throw new RuntimeException(e);
-    }
-
   }
 
 }
