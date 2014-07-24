@@ -1,5 +1,6 @@
 package ch.bergturbenthal.marathontabelle.androidclient;
 
+import java.util.ArrayList;
 import java.util.List;
 
 import android.app.Activity;
@@ -16,7 +17,7 @@ public class MarathonListFragment extends ListFragment {
 
   public interface Callbacks {
 
-    public void onItemSelected(MarathonData data);
+    public void onItemSelected(final MarathonData data);
   }
 
   private static final String STATE_ACTIVATED_POSITION = "activated_position";
@@ -80,7 +81,7 @@ public class MarathonListFragment extends ListFragment {
   }
 
   /**
-   * 
+   *
    */
   public void refreshData() {
     marathonListAdapter.replaceData(loadData());
@@ -102,7 +103,6 @@ public class MarathonListFragment extends ListFragment {
 
   private List<MarathonData> loadData() {
     final DataProvider dataProvider = new DataProvider(getActivity());
-    final List<MarathonData> data = dataProvider.getData();
-    return data;
+    return new ArrayList<MarathonData>(dataProvider.readSavedData());
   }
 }

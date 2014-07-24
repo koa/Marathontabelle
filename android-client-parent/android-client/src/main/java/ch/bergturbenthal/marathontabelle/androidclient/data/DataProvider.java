@@ -9,6 +9,7 @@ import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.OutputStream;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 
@@ -21,6 +22,15 @@ public class DataProvider {
 
   public DataProvider(final Context context) {
     this.context = context;
+  }
+
+  public MarathonData readData(final String id) {
+    final Collection<MarathonData> data = readSavedData();
+    for (final MarathonData marathonData : data) {
+      if (marathonData.getId().equals(id))
+        return marathonData;
+    }
+    return null;
   }
 
   public Collection<MarathonData> readSavedData() {
@@ -55,5 +65,16 @@ public class DataProvider {
       throw new RuntimeException(e);
     }
 
+  }
+
+  public void saveData(final MarathonData marathonData) {
+    final Collection<MarathonData> savedData = readSavedData();
+    final Collection<MarathonData> newSaveData = new ArrayList<MarathonData>();
+    for (final MarathonData savedMarathonData : savedData) {
+      if (!savedMarathonData.getId().equals(marathonData.getId()))
+        newSaveData.add(savedMarathonData);
+    }
+    newSaveData.add(marathonData);
+    saveData(newSaveData);
   }
 }
