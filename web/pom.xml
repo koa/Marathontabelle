@@ -9,7 +9,7 @@
 	</parent>
 	<groupId>ch.berg-turbenthal.marathontabelle</groupId>
 	<artifactId>web</artifactId>
-	<packaging>war</packaging>
+	<packaging>jar</packaging>
 	<version>0.0.1-SNAPSHOT</version>
 	<name>Vaadin Web Application</name>
 
@@ -44,6 +44,56 @@
 			<plugin>
 				<groupId>org.springframework.boot</groupId>
 				<artifactId>spring-boot-maven-plugin</artifactId>
+			</plugin>
+			<plugin>
+				<groupId>io.fabric8</groupId>
+				<artifactId>docker-maven-plugin</artifactId>
+				<version>0.20.1</version>
+				<executions>
+					<execution>
+						<phase>deploy</phase>
+						<goals>
+							<goal>build</goal>
+						</goals>
+					</execution>
+				</executions>
+				<configuration>
+					<images>
+						<image>
+							<alias>service</alias>
+							<name>koa1/marathontabelle:${project.version}</name>
+							<build>
+								<tags>
+									<tag>${project.version}</tag>
+								</tags>
+								<volumes>
+									<volume>/root/marathon-data</volume>
+								</volumes>
+								<ports>
+									<port>8080</port>
+								</ports>
+								<from>java:8</from>
+								<assembly>
+									<descriptorRef>artifact</descriptorRef>
+								</assembly>
+								<cmd>
+									<shell>java -jar /maven/web-${project.version}.jar</shell>
+								</cmd>
+							</build>
+						</image>
+					</images>
+				</configuration>
+			</plugin>
+			<plugin>
+				<artifactId>maven-release-plugin</artifactId>
+				<version>2.4.2</version>
+				<dependencies>
+					<dependency>
+						<groupId>org.apache.maven.scm</groupId>
+						<artifactId>maven-scm-provider-gitexe</artifactId>
+						<version>1.8.1</version>
+					</dependency>
+				</dependencies>
 			</plugin>
 		</plugins>
 		<pluginManagement>
