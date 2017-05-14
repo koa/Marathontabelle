@@ -2,41 +2,28 @@ package ch.bergturbenthal.marathontabelle.web;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
-import java.io.File;
 import java.io.InputStream;
+import java.time.Duration;
+import java.time.LocalTime;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
 import java.util.concurrent.Callable;
 
-import javax.servlet.annotation.WebServlet;
+import org.springframework.beans.factory.annotation.Autowired;
 
-import org.joda.time.Duration;
-import org.joda.time.LocalTime;
-
-import ch.bergturbenthal.filestore.core.FileStorage.ReadPolicy;
-import ch.bergturbenthal.marathontabelle.generator.GeneratePdf;
-import ch.bergturbenthal.marathontabelle.model.DriverData;
-import ch.bergturbenthal.marathontabelle.model.MarathonData;
-import ch.bergturbenthal.marathontabelle.model.Phase;
-import ch.bergturbenthal.marathontabelle.model.PhaseDataCategory;
-import ch.bergturbenthal.marathontabelle.model.PhaseDataCompetition;
-import ch.bergturbenthal.marathontabelle.model.TimeEntry;
-import ch.bergturbenthal.marathontabelle.web.binding.DurationFieldFactory;
-import ch.bergturbenthal.marathontabelle.web.store.Storage;
-
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.datatype.joda.JodaModule;
 import com.vaadin.annotations.Theme;
-import com.vaadin.annotations.VaadinServletConfiguration;
 import com.vaadin.data.Container;
+import com.vaadin.data.Item;
 import com.vaadin.data.Property.ValueChangeEvent;
 import com.vaadin.data.Property.ValueChangeListener;
 import com.vaadin.data.fieldgroup.BeanFieldGroup;
 import com.vaadin.data.fieldgroup.FieldGroup.CommitException;
 import com.vaadin.data.util.BeanItemContainer;
+import com.vaadin.data.util.IndexedContainer;
 import com.vaadin.data.util.ObjectProperty;
 import com.vaadin.event.DataBoundTransferable;
 import com.vaadin.event.dd.DragAndDropEvent;
@@ -46,8 +33,8 @@ import com.vaadin.event.dd.acceptcriteria.SourceIs;
 import com.vaadin.server.StreamResource;
 import com.vaadin.server.StreamResource.StreamSource;
 import com.vaadin.server.VaadinRequest;
-import com.vaadin.server.VaadinServlet;
 import com.vaadin.shared.ui.dd.VerticalDropLocation;
+import com.vaadin.spring.annotation.SpringUI;
 import com.vaadin.ui.AbstractSelect.AbstractSelectTargetDetails;
 import com.vaadin.ui.AbstractTextField;
 import com.vaadin.ui.BrowserFrame;
@@ -70,6 +57,17 @@ import com.vaadin.ui.TextField;
 import com.vaadin.ui.UI;
 import com.vaadin.ui.VerticalLayout;
 
+import ch.bergturbenthal.marathontabelle.generator.GeneratePdf;
+import ch.bergturbenthal.marathontabelle.model.DriverData;
+import ch.bergturbenthal.marathontabelle.model.MarathonData;
+import ch.bergturbenthal.marathontabelle.model.Phase;
+import ch.bergturbenthal.marathontabelle.model.PhaseDataCategory;
+import ch.bergturbenthal.marathontabelle.model.PhaseDataCompetition;
+import ch.bergturbenthal.marathontabelle.model.TimeEntry;
+import ch.bergturbenthal.marathontabelle.web.binding.DurationFieldFactory;
+import ch.bergturbenthal.marathontabelle.web.store.Storage;
+
+@SpringUI
 @Theme("mytheme")
 @SuppressWarnings("serial")
 public class MyVaadinUI extends UI {
@@ -115,25 +113,26 @@ public class MyVaadinUI extends UI {
 		V getCurrentData();
 	}
 
-	@WebServlet(value = "/*", asyncSupported = true)
-	@VaadinServletConfiguration(productionMode = false, ui = MyVaadinUI.class, widgetset = "ch.bergturbenthal.marathontabelle.web.AppWidgetSet")
-	public static class Servlet extends VaadinServlet {
+	// @WebServlet(value = "/*", asyncSupported = true)
+	// @VaadinServletConfiguration(productionMode = false, ui =
+	// MyVaadinUI.class, widgetset =
+	// "ch.bergturbenthal.marathontabelle.web.AppWidgetSet")
+	// public static class Servlet extends VaadinServlet {
+	// }
+
+	// private static interface ShowPdfHandler {
+	// void showPdf(final String driver);
+	// }
+
+	private final Storage storage;
+
+	@Autowired
+	public MyVaadinUI(final Storage storage) {
+		this.storage = storage;
 	}
 
-	private static interface ShowPdfHandler {
-		void showPdf(final String driver);
-	}
-
-	private final Storage storage = new Storage();
-
-	private final ObjectMapper mapper = new ObjectMapper();
-	private final File file = new File(System.getProperty("user.home"), "marathon.json");
-
-	public MyVaadinUI() {
-		mapper.registerModule(new JodaModule());
-	}
-
-	private void container2Model(final BeanItemContainer<TimeEntry> itemContainer, final PhaseDataCompetition phaseData) {
+	private void container2Model(final BeanItemContainer<TimeEntry> itemContainer,
+			final PhaseDataCompetition phaseData) {
 		final List<TimeEntry> entries = phaseData.getEntries();
 		entries.clear();
 		entries.addAll(itemContainer.getItemIds());
@@ -146,7 +145,8 @@ public class MyVaadinUI extends UI {
 			public Object generateCell(final Table source, final Object itemId, final Object columnId) {
 				final Set<Phase> smallSheets = ((DriverData) itemId).getSmallSheets();
 				final CheckBox checkBox = new CheckBox();
-				final ObjectProperty<Boolean> dataSource = new ObjectProperty<Boolean>(Boolean.valueOf(smallSheets.contains(phase)));
+				final ObjectProperty<Boolean> dataSource = new ObjectProperty<Boolean>(
+						Boolean.valueOf(smallSheets.contains(phase)));
 				dataSource.addValueChangeListener(new ValueChangeListener() {
 
 					@Override
@@ -171,7 +171,8 @@ public class MyVaadinUI extends UI {
 			public Object generateCell(final Table source, final Object itemId, final Object columnId) {
 				final DriverData driverData = (DriverData) itemId;
 				final TextField field = fieldFactory.createField(LocalTime.class, TextField.class);
-				final ObjectProperty<LocalTime> property = new ObjectProperty<LocalTime>(defaultIfNull(driverData.getStartTimes().get(phase), new LocalTime(0, 0)));
+				final ObjectProperty<LocalTime> property = new ObjectProperty<LocalTime>(
+						defaultIfNull(driverData.getStartTimes().get(phase), LocalTime.of(0, 0)));
 				field.setPropertyDataSource(property);
 				property.addValueChangeListener(new ValueChangeListener() {
 
@@ -201,6 +202,29 @@ public class MyVaadinUI extends UI {
 	protected void init(final VaadinRequest request) {
 		final TabSheet tabLayout = new TabSheet();
 		final VerticalLayout layout = new VerticalLayout();
+		final IndexedContainer marathonListContainer = new IndexedContainer();
+		marathonListContainer.addContainerProperty("name", String.class, null);
+		final Runnable refreshAvailableCompetitions = () -> {
+			final Set<Object> remainingItems = new HashSet<>(marathonListContainer.getItemIds());
+			for (final String marathonName : storage.listMarathons()) {
+
+				final Item item;
+				if (remainingItems.remove(marathonName))
+					item = marathonListContainer.getItem(marathonName);
+				else
+					item = marathonListContainer.addItem(marathonName);
+				item.getItemProperty("name").setValue(marathonName);
+
+			}
+			for (final Object itemId : remainingItems) {
+				marathonListContainer.removeItem(itemId);
+			}
+		};
+		refreshAvailableCompetitions.run();
+		final ComboBox selectCompetionComboBox = new ComboBox("Veranstaltung wählen", marathonListContainer);
+		layout.addComponent(selectCompetionComboBox);
+		selectCompetionComboBox.setTextInputAllowed(false);
+		selectCompetionComboBox.setNullSelectionAllowed(false);
 		layout.addComponent(tabLayout);
 		setContent(layout);
 
@@ -217,12 +241,12 @@ public class MyVaadinUI extends UI {
 		tabLayout.addTab(phaseATabContent, "Phase A");
 
 		final FormLayout phaseDTabContent = new FormLayout();
-		binders.appendBinder(showPhaseData(phaseDTabContent, Phase.D));
-		tabLayout.addTab(phaseDTabContent, "Phase D");
+		binders.appendBinder(showPhaseData(phaseDTabContent, Phase.TRANSFER));
+		tabLayout.addTab(phaseDTabContent, "Transfer");
 
 		final FormLayout phaseETabContent = new FormLayout();
-		binders.appendBinder(showPhaseData(phaseETabContent, Phase.E));
-		tabLayout.addTab(phaseETabContent, "Phase E");
+		binders.appendBinder(showPhaseData(phaseETabContent, Phase.B));
+		tabLayout.addTab(phaseETabContent, "Phase B");
 
 		final VerticalLayout outputLayout = new VerticalLayout();
 		final FormLayout outputParameters = new FormLayout();
@@ -282,6 +306,15 @@ public class MyVaadinUI extends UI {
 
 		layout.setSizeFull();
 
+		selectCompetionComboBox.addValueChangeListener(new ValueChangeListener() {
+
+			@Override
+			public void valueChange(final ValueChangeEvent event) {
+				final MarathonData marathonData = loadMarathonData((String) selectCompetionComboBox.getValue());
+				binders.bindData(marathonData);
+			}
+		});
+
 		selectDriverCombo.addValueChangeListener(new ValueChangeListener() {
 
 			@Override
@@ -300,38 +333,36 @@ public class MyVaadinUI extends UI {
 				saveMarathonData(binders.getCurrentData());
 				source.setFilename(makeOutputFilename());
 				pdf.markAsDirty();
+				refreshAvailableCompetitions.run();
 			}
 		});
 		layout.addComponent(saveButton);
 	}
 
 	private MarathonData loadMarathonData(final String name) {
-		return storage.callInTransaction(new Callable<MarathonData>() {
 
-			@Override
-			public MarathonData call() throws Exception {
-				final MarathonData marathon = storage.getMarathon(name, ReadPolicy.READ_OR_CREATE);
-				if (marathon.getCompetitionPhases().isEmpty()) {
-					final PhaseDataCompetition phaseA = new PhaseDataCompetition();
-					phaseA.setPhaseName("Phase A");
-					marathon.getCompetitionPhases().put(Phase.A, phaseA);
-					final PhaseDataCompetition phaseD = new PhaseDataCompetition();
-					phaseD.setPhaseName("Phase D");
-					marathon.getCompetitionPhases().put(Phase.D, phaseD);
-					final PhaseDataCompetition phaseE = new PhaseDataCompetition();
-					phaseE.setPhaseName("Phase E");
-					marathon.getCompetitionPhases().put(Phase.E, phaseE);
-				}
-				return marathon;
-			}
-		});
+		final MarathonData marathon = storage.getMarathon(name);
+		if (marathon.getCompetitionPhases().isEmpty()) {
+			final PhaseDataCompetition phaseA = new PhaseDataCompetition();
+			phaseA.setPhaseName("Phase A");
+			marathon.getCompetitionPhases().put(Phase.A, phaseA);
+			final PhaseDataCompetition phaseD = new PhaseDataCompetition();
+			phaseD.setPhaseName("Transfer");
+			marathon.getCompetitionPhases().put(Phase.TRANSFER, phaseD);
+			final PhaseDataCompetition phaseE = new PhaseDataCompetition();
+			phaseE.setPhaseName("Phase B");
+			marathon.getCompetitionPhases().put(Phase.B, phaseE);
+		}
+		storage.saveMaraton(marathon);
+		return marathon;
 	}
 
 	private String makeOutputFilename() {
 		return "marathon-" + System.currentTimeMillis() + ".pdf";
 	}
 
-	private void model2Container(final PhaseDataCompetition phaseData, final BeanItemContainer<TimeEntry> itemContainer) {
+	private void model2Container(final PhaseDataCompetition phaseData,
+			final BeanItemContainer<TimeEntry> itemContainer) {
 		itemContainer.removeAllItems();
 		itemContainer.addAll(phaseData.getEntries());
 	}
@@ -414,12 +445,12 @@ public class MyVaadinUI extends UI {
 			}
 		});
 		table.addGeneratedColumn("Phase A Zettel", createPhaseCheckbox(Phase.A));
-		table.addGeneratedColumn("Phase D Zettel", createPhaseCheckbox(Phase.D));
-		table.addGeneratedColumn("Phase E Zettel", createPhaseCheckbox(Phase.E));
+		table.addGeneratedColumn("Transfer Zettel", createPhaseCheckbox(Phase.TRANSFER));
+		table.addGeneratedColumn("Phase B Zettel", createPhaseCheckbox(Phase.B));
 		final DurationFieldFactory fieldFactory = new DurationFieldFactory();
 		table.addGeneratedColumn("Phase A Start", createPhaseStartInput(fieldFactory, Phase.A));
-		table.addGeneratedColumn("Phase D Start", createPhaseStartInput(fieldFactory, Phase.D));
-		table.addGeneratedColumn("Phase E Start", createPhaseStartInput(fieldFactory, Phase.E));
+		table.addGeneratedColumn("Transfer Start", createPhaseStartInput(fieldFactory, Phase.TRANSFER));
+		table.addGeneratedColumn("Phase D Start", createPhaseStartInput(fieldFactory, Phase.B));
 		table.addGeneratedColumn("Fahrer Löschen", new ColumnGenerator() {
 
 			@Override
@@ -496,19 +527,23 @@ public class MyVaadinUI extends UI {
 
 	private DataBinder<MarathonData> showPhaseData(final FormLayout layout, final Phase phase) {
 		layout.setMargin(true);
-		final BeanFieldGroup<PhaseDataCompetition> binder = new BeanFieldGroup<PhaseDataCompetition>(PhaseDataCompetition.class);
+		final BeanFieldGroup<PhaseDataCompetition> binder = new BeanFieldGroup<PhaseDataCompetition>(
+				PhaseDataCompetition.class);
 		final DurationFieldFactory fieldFactory = new DurationFieldFactory();
 		binder.setFieldFactory(fieldFactory);
 
-		// layout.addComponent(binder.buildAndBind("geplante Startzeit", "startTime"));
+		// layout.addComponent(binder.buildAndBind("geplante Startzeit",
+		// "startTime"));
 		// layout.addComponent(binder.buildAndBind("Maximale Zeit", "maxTime"));
 		// layout.addComponent(binder.buildAndBind("Minimale Zeit", "minTime"));
 		layout.addComponent(binder.buildAndBind("Name der Phase", "phaseName"));
 		layout.addComponent(binder.buildAndBind("Länge in m", "length"));
-		// layout.addComponent(binder.buildAndBind("Geschwindigkeit im m/s", "velocity"));
+		// layout.addComponent(binder.buildAndBind("Geschwindigkeit im m/s",
+		// "velocity"));
 		// layout.addComponent(binder.buildAndBind("Tabelle", "entries"));
 
-		final BeanItemContainer<Entry<String, PhaseDataCategory>> categoryTimesItemContainer = new BeanItemContainer<Map.Entry<String, PhaseDataCategory>>(Map.Entry.class);
+		final BeanItemContainer<Entry<String, PhaseDataCategory>> categoryTimesItemContainer = new BeanItemContainer<Map.Entry<String, PhaseDataCategory>>(
+				Map.Entry.class);
 		final Table timesTable = new Table("Zeiten");
 		timesTable.setContainerDataSource(categoryTimesItemContainer);
 		timesTable.setHeight("8em");
@@ -531,7 +566,8 @@ public class MyVaadinUI extends UI {
 				final Entry<String, PhaseDataCategory> entry = (Entry<String, PhaseDataCategory>) itemId;
 				final TextField field = fieldFactory.createField(Duration.class, TextField.class);
 				final PhaseDataCategory phaseDataCategory = entry.getValue();
-				final ObjectProperty<Duration> property = new ObjectProperty<Duration>(defaultIfNull(phaseDataCategory.getMinTime(), new Duration(0)));
+				final ObjectProperty<Duration> property = new ObjectProperty<Duration>(
+						defaultIfNull(phaseDataCategory.getMinTime(), Duration.ZERO));
 				field.setPropertyDataSource(property);
 				property.addValueChangeListener(new ValueChangeListener() {
 
@@ -551,7 +587,8 @@ public class MyVaadinUI extends UI {
 				final Entry<String, PhaseDataCategory> entry = (Entry<String, PhaseDataCategory>) itemId;
 				final TextField field = fieldFactory.createField(Duration.class, TextField.class);
 				final PhaseDataCategory phaseDataCategory = entry.getValue();
-				final ObjectProperty<Duration> property = new ObjectProperty<Duration>(defaultIfNull(phaseDataCategory.getMaxTime(), new Duration(0)));
+				final ObjectProperty<Duration> property = new ObjectProperty<Duration>(
+						defaultIfNull(phaseDataCategory.getMaxTime(), Duration.ZERO));
 				field.setPropertyDataSource(property);
 				property.addValueChangeListener(new ValueChangeListener() {
 
@@ -572,7 +609,8 @@ public class MyVaadinUI extends UI {
 				final PhaseDataCategory phaseDataCategory = entry.getValue();
 				phaseDataCategory.getVelocity();
 				final TextField field = fieldFactory.createField(Double.class, TextField.class);
-				final ObjectProperty<Double> property = new ObjectProperty<Double>(defaultIfNull(phaseDataCategory.getVelocity(), Double.valueOf(0)));
+				final ObjectProperty<Double> property = new ObjectProperty<Double>(
+						defaultIfNull(phaseDataCategory.getVelocity(), Double.valueOf(0)));
 				field.setPropertyDataSource(property);
 				property.addValueChangeListener(new ValueChangeListener() {
 
@@ -601,16 +639,23 @@ public class MyVaadinUI extends UI {
 			@Override
 			public void drop(final DragAndDropEvent dropEvent) {
 				final DataBoundTransferable t = (DataBoundTransferable) dropEvent.getTransferable();
-				final TimeEntry sourceItemId = (TimeEntry) t.getItemId(); // returns our Bean
+				final TimeEntry sourceItemId = (TimeEntry) t.getItemId(); // returns
+																			// our
+																			// Bean
 
-				final AbstractSelectTargetDetails dropData = ((AbstractSelectTargetDetails) dropEvent.getTargetDetails());
-				final TimeEntry targetItemId = (TimeEntry) dropData.getItemIdOver(); // returns our Bean
+				final AbstractSelectTargetDetails dropData = ((AbstractSelectTargetDetails) dropEvent
+						.getTargetDetails());
+				final TimeEntry targetItemId = (TimeEntry) dropData.getItemIdOver(); // returns
+																						// our
+																						// Bean
 
-				// No move if source and target are the same, or there is no target
+				// No move if source and target are the same, or there is no
+				// target
 				if (sourceItemId == targetItemId || targetItemId == null)
 					return;
 
-				// Let's remove the source of the drag so we can add it back where requested...
+				// Let's remove the source of the drag so we can add it back
+				// where requested...
 				timeEntryItemContainer.removeItem(sourceItemId);
 
 				if (dropData.getDropLocation() == VerticalDropLocation.BOTTOM) {
@@ -643,7 +688,8 @@ public class MyVaadinUI extends UI {
 		final TableFieldFactory tableFieldFactory = new TableFieldFactory() {
 
 			@Override
-			public Field<?> createField(final Container container, final Object itemId, final Object propertyId, final Component uiContext) {
+			public Field<?> createField(final Container container, final Object itemId, final Object propertyId,
+					final Component uiContext) {
 				final Class<?> type = container.getType(propertyId);
 				final Field field = fieldFactory.createField(type, Field.class);
 				if (field instanceof AbstractTextField) {
@@ -726,7 +772,8 @@ public class MyVaadinUI extends UI {
 			public void buttonClick(final ClickEvent event) {
 				phaseDataBinder.commitHandler();
 
-				final PhaseDataCompetition phaseData = phaseDataBinder.getCurrentData().getCompetitionPhases().get(phase);
+				final PhaseDataCompetition phaseData = phaseDataBinder.getCurrentData().getCompetitionPhases()
+						.get(phase);
 				phaseData.setDefaultPoints();
 
 				model2Container(phaseData, timeEntryItemContainer);

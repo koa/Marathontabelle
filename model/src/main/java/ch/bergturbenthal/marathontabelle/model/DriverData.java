@@ -1,13 +1,12 @@
 package ch.bergturbenthal.marathontabelle.model;
 
+import java.time.LocalTime;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 
 import lombok.Data;
-
-import org.joda.time.LocalTime;
 
 @Data
 public class DriverData {

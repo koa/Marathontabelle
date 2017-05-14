@@ -1,8 +1,8 @@
 package ch.bergturbenthal.marathontabelle.model;
 
-import lombok.Data;
+import java.time.Duration;
 
-import org.joda.time.Duration;
+import lombok.Data;
 
 @Data
 public class PhaseDataCategory {

@@ -5,10 +5,10 @@ package ch.bergturbenthal.marathontabelle.model;
 
 /**
  * TODO: add type comment.
- * 
+ *
  */
 public enum Phase {
-  A,
-  D,
-  E
+                   A,
+                   TRANSFER,
+                   B
 }

@@ -1,20 +1,14 @@
 package ch.bergturbenthal.marathontabelle.generator;
 
 import java.io.OutputStream;
+import java.time.Duration;
+import java.time.Instant;
+import java.time.LocalTime;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
+import java.time.format.FormatStyle;
 import java.util.Collection;
 import java.util.List;
-
-import org.joda.time.Duration;
-import org.joda.time.LocalTime;
-import org.joda.time.format.DateTimeFormat;
-import org.joda.time.format.DateTimeFormatter;
-
-import ch.bergturbenthal.marathontabelle.model.DriverData;
-import ch.bergturbenthal.marathontabelle.model.MarathonData;
-import ch.bergturbenthal.marathontabelle.model.Phase;
-import ch.bergturbenthal.marathontabelle.model.PhaseDataCategory;
-import ch.bergturbenthal.marathontabelle.model.PhaseDataCompetition;
-import ch.bergturbenthal.marathontabelle.model.TimeEntry;
 
 import com.itextpdf.text.BaseColor;
 import com.itextpdf.text.Document;
@@ -32,6 +26,13 @@ import com.itextpdf.text.pdf.PdfPTable;
 import com.itextpdf.text.pdf.PdfPageEventHelper;
 import com.itextpdf.text.pdf.PdfWriter;
 
+import ch.bergturbenthal.marathontabelle.model.DriverData;
+import ch.bergturbenthal.marathontabelle.model.MarathonData;
+import ch.bergturbenthal.marathontabelle.model.Phase;
+import ch.bergturbenthal.marathontabelle.model.PhaseDataCategory;
+import ch.bergturbenthal.marathontabelle.model.PhaseDataCompetition;
+import ch.bergturbenthal.marathontabelle.model.TimeEntry;
+
 public class GeneratePdf {
   /**
    *
@@ -45,47 +46,14 @@ public class GeneratePdf {
    *
    */
   private static final Font DATA_FONT = new Font(Font.FontFamily.HELVETICA, 24);
-  private static final DateTimeFormatter DURATION_PATTERN = DateTimeFormat.forPattern("mm:ss");
-  private static final DateTimeFormatter TIME_PATTERN = DateTimeFormat.forPattern("HH:mm:ss 'Uhr'");
-
-  public void makePdf(final OutputStream out, final MarathonData data, final String driver) {
-    try {
-      final DriverData driverData = data.getDrivers().get(driver);
-      if (driverData != null && driverData.getCategory() != null) {
-        final String now = DateTimeFormat.mediumDateTime().print(System.currentTimeMillis());
-        final Document document = new Document(PageSize.A4);
-        final PdfWriter writer = PdfWriter.getInstance(document, out);
-        final String category = driverData.getCategory();
-        writer.setPageEvent(new PdfPageEventHelper() {
-
-          @Override
-          public void onEndPage(final PdfWriter writer, final Document document) {
-            final PdfContentByte cb = writer.getDirectContent();
-            ColumnText.showTextAligned(cb, Element.ALIGN_LEFT, new Phrase(driver + " - " + category + " - " + now, SMALL_FONT),
-                                       document.leftMargin() - 1, document.top() + 30, 0);
-          }
-        });
-
-        document.open();
-        appendPhaseOverview(document, data, Phase.A, driver);
-        appendPhaseOverview(document, data, Phase.D, driver);
-        document.newPage();
-        appendPhaseOverview(document, data, Phase.E, driver);
-        appendSmallSheets(document, data, driver);
-        document.close();
-      }
-    } catch (final DocumentException e) {
-      throw new RuntimeException(e);
-    }
-
-  }
+  private static final DateTimeFormatter TIME_PATTERN = DateTimeFormatter.ofPattern("HH:mm:ss 'Uhr'");
 
   private void appendCell(final PdfPTable table, final String text, final Font font) {
     table.addCell(new Phrase(text, font));
   }
 
-  private void
-  appendPhaseOverview(final Document document, final MarathonData marathon, final Phase phase, final String driver) throws DocumentException {
+  private void appendPhaseOverview(final Document document, final MarathonData marathon, final Phase phase,
+                                   final String driver) throws DocumentException {
     final PhaseDataCompetition phaseData = marathon.getCompetitionPhases().get(phase);
     if (phaseData.getLength() == null)
       return;
@@ -127,8 +95,8 @@ public class GeneratePdf {
       final Duration minTime = phaseDataCategory.getMinTime();
       final Duration maxTime = phaseDataCategory.getMaxTime();
       final Integer length = phase.getLength();
-      final Double minMillisPerMeter = minTime != null ? Double.valueOf(minTime.getMillis() / (double) length.intValue()) : null;
-      final Double maxMillisPerMeter = maxTime != null ? Double.valueOf(maxTime.getMillis() / (double) length.intValue()) : null;
+      final Double minMillisPerMeter = minTime != null ? Double.valueOf(minTime.toMillis() / (double) length.intValue()) : null;
+      final Double maxMillisPerMeter = maxTime != null ? Double.valueOf(maxTime.toMillis() / (double) length.intValue()) : null;
 
       for (final TimeEntry entry : entries) {
         final String comment = entry.getComment();
@@ -147,11 +115,11 @@ public class GeneratePdf {
           lineValues[0] = position + " m";
           if (minMillisPerMeter != null) {
             lineTitles[1] = "min. ";
-            lineValues[1] = DURATION_PATTERN.print((long) (position.intValue() * minMillisPerMeter.doubleValue()));
+            lineValues[1] = FormatUtil.formatDuration(Duration.ofMillis((long) (position.intValue() * minMillisPerMeter.doubleValue())));
           }
           if (maxMillisPerMeter != null) {
             lineTitles[2] = "max. ";
-            lineValues[2] = DURATION_PATTERN.print((long) (position.intValue() * maxMillisPerMeter.doubleValue()));
+            lineValues[2] = FormatUtil.formatDuration(Duration.ofMillis((long) (position.intValue() * maxMillisPerMeter.doubleValue())));
           }
         }
         table.addCell(makeEntryTable(++cellNr, comment, lineTitles, lineValues, driver));
@@ -163,7 +131,8 @@ public class GeneratePdf {
 
   }
 
-  private void appendTimeDetail(final Document document, final PhaseDataCategory category, final PhaseDataCompetition phase) throws DocumentException {
+  private void appendTimeDetail(final Document document, final PhaseDataCategory category,
+                                final PhaseDataCompetition phase) throws DocumentException {
     final PdfPTable table = new PdfPTable(5);
     // table.getDefaultCell().setBorder(Rectangle.NO_BORDER);
     final Integer length = phase.getLength();
@@ -182,7 +151,7 @@ public class GeneratePdf {
       table.getDefaultCell().setBorder(Rectangle.LEFT);
       table.addCell("min.");
       table.getDefaultCell().setBorder(Rectangle.RIGHT);
-      table.addCell(DURATION_PATTERN.print(minTime.getMillis()));
+      table.addCell(FormatUtil.formatDuration(minTime));
     }
     table.getDefaultCell().setBorder(Rectangle.BOTTOM + Rectangle.TOP);
     if (length != null) {
@@ -204,7 +173,7 @@ public class GeneratePdf {
     if (maxTime != null) {
       table.addCell("max.");
       table.getDefaultCell().setBorder(Rectangle.RIGHT + Rectangle.BOTTOM);
-      table.addCell(DURATION_PATTERN.print(maxTime.getMillis()));
+      table.addCell(FormatUtil.formatDuration(maxTime));
     } else {
       table.addCell("");
       table.getDefaultCell().setBorder(Rectangle.RIGHT + Rectangle.BOTTOM);
@@ -221,7 +190,7 @@ public class GeneratePdf {
     if (canComputeTime) {
       table.getDefaultCell().setBorder(Rectangle.LEFT + Rectangle.RIGHT + Rectangle.BOTTOM);
       final double theoritcallyDurationInMillis = length / velocity / 1000 * 3600 * 1000;
-      table.addCell(DURATION_PATTERN.print((long) theoritcallyDurationInMillis));
+      table.addCell(FormatUtil.formatDuration(Duration.ofMillis(((long) theoritcallyDurationInMillis))));
     }
     table.getDefaultCell().setBorder(Rectangle.NO_BORDER);
     table.completeRow();
@@ -242,8 +211,8 @@ public class GeneratePdf {
     final Duration maxTime = category.getMaxTime();
     if (length == null)
       return;
-    final Double minMillisPerMeter = minTime != null ? Double.valueOf(minTime.getMillis() / (double) length.intValue()) : null;
-    final Double maxMillisPerMeter = maxTime != null ? Double.valueOf(maxTime.getMillis() / (double) length.intValue()) : null;
+    final Double minMillisPerMeter = minTime != null ? Double.valueOf(minTime.toMillis() / (double) length.intValue()) : null;
+    final Double maxMillisPerMeter = maxTime != null ? Double.valueOf(maxTime.toMillis() / (double) length.intValue()) : null;
     final PdfPTable table = new PdfPTable(4);
 
     table.setHeaderRows(1);
@@ -268,11 +237,13 @@ public class GeneratePdf {
         continue;
       appendCell(table, entry.getPosition() + " m", font);
       if (minMillisPerMeter != null) {
-        appendCell(table, DURATION_PATTERN.print((long) (entry.getPosition().intValue() * minMillisPerMeter.doubleValue())), font);
+        appendCell(table, FormatUtil.formatDuration(Duration.ofMillis((long) (entry.getPosition().intValue() * minMillisPerMeter.doubleValue()))),
+                   font);
       } else
         table.addCell("");
       if (maxMillisPerMeter != null) {
-        appendCell(table, DURATION_PATTERN.print((long) (entry.getPosition().intValue() * maxMillisPerMeter.doubleValue())), font);
+        appendCell(table, FormatUtil.formatDuration(Duration.ofMillis((long) (entry.getPosition().intValue() * maxMillisPerMeter.doubleValue()))),
+                   font);
       } else
         table.addCell("");
       if (commentBuilder.length() > 0) {
@@ -297,8 +268,8 @@ public class GeneratePdf {
     document.add(titleParagraph);
   }
 
-  private void
-  apppendTimeOverview(final Document document, final MarathonData marathon, final Phase phase, final String driver) throws DocumentException {
+  private void apppendTimeOverview(final Document document, final MarathonData marathon, final Phase phase,
+                                   final String driver) throws DocumentException {
     final DriverData driverData = marathon.getDrivers().get(driver);
     final LocalTime startTime = driverData.getStartTimes().get(phase);
     final PhaseDataCompetition phaseData = marathon.getCompetitionPhases().get(phase);
@@ -310,14 +281,14 @@ public class GeneratePdf {
       table.getDefaultCell().setBorder(Rectangle.NO_BORDER);
       table.getDefaultCell().setBackgroundColor(BaseColor.YELLOW);
       table.addCell("Startzeit");
-      table.addCell(TIME_PATTERN.print(startTime));
+      table.addCell(TIME_PATTERN.format(startTime));
       if (minTime != null) {
         table.addCell("Ankunft Min");
-        table.addCell(TIME_PATTERN.print(startTime.plusMillis((int) minTime.getMillis())));
+        table.addCell(TIME_PATTERN.format(startTime.plus(minTime)));
       }
       if (maxTime != null) {
         table.addCell("Ankunft Max");
-        table.addCell(TIME_PATTERN.print(startTime.plusMillis((int) maxTime.getMillis())));
+        table.addCell(TIME_PATTERN.format(startTime.plus(maxTime)));
       }
       table.setWidthPercentage(30);
       table.setSpacingAfter(5);
@@ -325,7 +296,8 @@ public class GeneratePdf {
     }
   }
 
-  private PdfPTable makeEntryTable(final int nr, final String comment, final String[] lineTitles, final String[] lineValues, final String driverName) {
+  private PdfPTable makeEntryTable(final int nr, final String comment, final String[] lineTitles, final String[] lineValues,
+                                   final String driverName) {
     final PdfPTable entryTable = new PdfPTable(new float[] { 1, 2 });
     entryTable.getDefaultCell().setBorder(0);
     {
@@ -368,6 +340,38 @@ public class GeneratePdf {
       entryTable.completeRow();
     }
     return entryTable;
+  }
+
+  public void makePdf(final OutputStream out, final MarathonData data, final String driver) {
+    try {
+      final DriverData driverData = data.getDrivers().get(driver);
+      if (driverData != null && driverData.getCategory() != null) {
+        final String now = DateTimeFormatter.ofLocalizedDateTime(FormatStyle.MEDIUM).format(Instant.now().atZone(ZoneId.systemDefault()));
+        final Document document = new Document(PageSize.A4);
+        final PdfWriter writer = PdfWriter.getInstance(document, out);
+        final String category = driverData.getCategory();
+        writer.setPageEvent(new PdfPageEventHelper() {
+
+          @Override
+          public void onEndPage(final PdfWriter writer, final Document document) {
+            final PdfContentByte cb = writer.getDirectContent();
+            ColumnText.showTextAligned(cb, Element.ALIGN_LEFT, new Phrase(driver + " - " + category + " - " + now, SMALL_FONT),
+                                       document.leftMargin() - 1, document.top() + 30, 0);
+          }
+        });
+
+        document.open();
+        appendPhaseOverview(document, data, Phase.A, driver);
+        appendPhaseOverview(document, data, Phase.TRANSFER, driver);
+        document.newPage();
+        appendPhaseOverview(document, data, Phase.B, driver);
+        appendSmallSheets(document, data, driver);
+        document.close();
+      }
+    } catch (final DocumentException e) {
+      throw new RuntimeException(e);
+    }
+
   }
 
 }
