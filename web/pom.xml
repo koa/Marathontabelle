@@ -77,7 +77,7 @@
 									<descriptorRef>artifact</descriptorRef>
 								</assembly>
 								<cmd>
-									<shell>java -jar /maven/web-${project.version}.jar</shell>
+									<shell>java -Xmx256m -jar /maven/web-${project.version}.jar</shell>
 								</cmd>
 							</build>
 						</image>
