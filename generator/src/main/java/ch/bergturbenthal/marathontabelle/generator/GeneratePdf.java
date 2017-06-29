@@ -1,5 +1,7 @@
 package ch.bergturbenthal.marathontabelle.generator;
 
+import java.io.File;
+import java.io.IOException;
 import java.io.OutputStream;
 import java.time.Duration;
 import java.time.Instant;
@@ -10,11 +12,13 @@ import java.time.format.FormatStyle;
 import java.util.Collection;
 import java.util.List;
 
+import com.itextpdf.text.BadElementException;
 import com.itextpdf.text.BaseColor;
 import com.itextpdf.text.Document;
 import com.itextpdf.text.DocumentException;
 import com.itextpdf.text.Element;
 import com.itextpdf.text.Font;
+import com.itextpdf.text.Image;
 import com.itextpdf.text.PageSize;
 import com.itextpdf.text.Paragraph;
 import com.itextpdf.text.Phrase;
@@ -32,7 +36,9 @@ import ch.bergturbenthal.marathontabelle.model.Phase;
 import ch.bergturbenthal.marathontabelle.model.PhaseDataCategory;
 import ch.bergturbenthal.marathontabelle.model.PhaseDataCompetition;
 import ch.bergturbenthal.marathontabelle.model.TimeEntry;
+import lombok.extern.slf4j.Slf4j;
 
+@Slf4j
 public class GeneratePdf {
   /**
    *
@@ -47,12 +53,39 @@ public class GeneratePdf {
    */
   private static final Font DATA_FONT = new Font(Font.FontFamily.HELVETICA, 24);
   private static final DateTimeFormatter TIME_PATTERN = DateTimeFormatter.ofPattern("HH:mm:ss 'Uhr'");
+  private File currentDirectory;
 
   private void appendCell(final PdfPTable table, final String text, final Font font) {
     table.addCell(new Phrase(text, font));
   }
 
-  private void appendPhaseOverview(final Document document, final MarathonData marathon, final Phase phase,
+  private void appendImage(final Document document, final PdfWriter writer, final PhaseDataCategory phaseDataCategory,
+                           final PhaseDataCompetition phaseData) throws DocumentException {
+    if (currentDirectory == null)
+      return;
+    final String imageName = phaseData.getImageName();
+    if (imageName == null)
+      return;
+    final File imageFile = new File(currentDirectory, imageName);
+    if (!imageFile.exists())
+      return;
+    try {
+      final Image image = Image.getInstance(imageFile.getAbsolutePath());
+      final Rectangle pageSize = document.getPageSize();
+      final float imageWidth = pageSize.getWidth() - pageSize.getBorderWidthLeft() - pageSize.getBorderWidthRight();
+      final float originalImageWidth = image.getWidth();
+      final float remainingHeight = pageSize.getHeight() - writer.getVerticalPosition(true) - pageSize.getBorderWidthBottom();
+
+      image.setAlignment(Image.ALIGN_CENTER);
+      image.scaleToFit(imageWidth * 0.8f, remainingHeight * 0.6f);
+      document.add(image);
+      document.newPage();
+    } catch (BadElementException | IOException e) {
+      log.warn("Cannot layout image " + imageName, e);
+    }
+  }
+
+  private void appendPhaseOverview(final Document document, final PdfWriter writer, final MarathonData marathon, final Phase phase,
                                    final String driver) throws DocumentException {
     final PhaseDataCompetition phaseData = marathon.getCompetitionPhases().get(phase);
     if (phaseData.getLength() == null)
@@ -63,6 +96,7 @@ public class GeneratePdf {
     apppendTimeOverview(document, marathon, phase, driver);
     appendTimeDetail(document, phaseDataCategory, phaseData);
     appendTimetable(document, phaseDataCategory, phaseData);
+    appendImage(document, writer, phaseDataCategory, phaseData);
   }
 
   /**
@@ -361,10 +395,10 @@ public class GeneratePdf {
         });
 
         document.open();
-        appendPhaseOverview(document, data, Phase.A, driver);
-        appendPhaseOverview(document, data, Phase.TRANSFER, driver);
+        appendPhaseOverview(document, writer, data, Phase.A, driver);
+        appendPhaseOverview(document, writer, data, Phase.TRANSFER, driver);
         document.newPage();
-        appendPhaseOverview(document, data, Phase.B, driver);
+        appendPhaseOverview(document, writer, data, Phase.B, driver);
         appendSmallSheets(document, data, driver);
         document.close();
       }
@@ -372,6 +406,11 @@ public class GeneratePdf {
       throw new RuntimeException(e);
     }
 
+  }
+
+  public GeneratePdf withCurrentDirectory(final File directory) {
+    this.currentDirectory = directory;
+    return this;
   }
 
 }

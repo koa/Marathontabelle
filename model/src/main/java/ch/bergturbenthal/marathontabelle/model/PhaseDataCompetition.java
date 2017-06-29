@@ -13,6 +13,7 @@ public class PhaseDataCompetition implements Serializable {
   private static final long serialVersionUID = 1339840303760291890L;
   private Integer length;
   private String phaseName;
+  private String imageName;
   private final Map<String, PhaseDataCategory> categoryTimes = new HashMap<String, PhaseDataCategory>();
   private final List<TimeEntry> entries = new ArrayList<TimeEntry>();
 

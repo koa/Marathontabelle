@@ -40,7 +40,9 @@ public class TestAltenfelden {
 
     final FileOutputStream os = new FileOutputStream(new File("target/christof-altenfelden.pdf"));
     try {
-      new GeneratePdf().makePdf(os, data, "Christof König");
+
+      final File directory = new File("src/test/resources/images");
+      new GeneratePdf().withCurrentDirectory(directory).makePdf(os, data, "Christof König");
     } finally {
       os.close();
     }
@@ -73,6 +75,7 @@ public class TestAltenfelden {
     phaseA.getEntries().add(new TimeEntry(null, "T8"));
     phaseA.getEntries().add(new TimeEntry(Integer.valueOf(6000), "km6"));
     phaseA.getEntries().add(new TimeEntry(Integer.valueOf(6300), "Ziel"));
+    phaseA.setImageName("IMG_20170629_113617.jpg");
 
     final PhaseDataCompetition phaseD = new PhaseDataCompetition();
     data.getCompetitionPhases().put(Phase.TRANSFER, phaseD);
