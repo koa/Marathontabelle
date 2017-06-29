@@ -4,6 +4,7 @@ import java.io.File;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.UUID;
 import java.util.concurrent.Callable;
 import java.util.stream.Collectors;
 
@@ -22,6 +23,7 @@ public class DefaultStorage implements Storage {
 	private final ObjectReader reader;
 	private final ObjectWriter writer;
 	private final File dataDir;
+	private final File blobRoot;
 
 	public DefaultStorage(final ObjectMapper mapper) {
 
@@ -30,6 +32,9 @@ public class DefaultStorage implements Storage {
 		dataDir = new File(System.getProperty("user.home"), "marathon-data");
 		if (!dataDir.exists())
 			dataDir.mkdirs();
+		blobRoot = new File(dataDir, "blob");
+		if (!blobRoot.exists())
+			blobRoot.mkdirs();
 	}
 
 	/*
@@ -50,6 +55,11 @@ public class DefaultStorage implements Storage {
 
 	private File dataFile(final String name) {
 		return new File(dataDir, name + SUFFIX);
+	}
+
+	@Override
+	public File getBlobRoot() {
+		return blobRoot;
 	}
 
 	/*
@@ -100,5 +110,17 @@ public class DefaultStorage implements Storage {
 		} catch (final IOException e) {
 			throw new RuntimeException("Cannot store file " + data.getMarathonName(), e);
 		}
+	}
+
+	@Override
+	public File createStoreFile(final String filename) {
+		final int endingPos = filename.lastIndexOf('.');
+		final String ending;
+		if (endingPos > 0) {
+			ending = filename.substring(endingPos);
+		} else
+			ending = "";
+		final String newFilename = UUID.randomUUID().toString() + ending;
+		return new File(blobRoot, newFilename);
 	}
 }

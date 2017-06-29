@@ -74,10 +74,13 @@ public class GeneratePdf {
       final Rectangle pageSize = document.getPageSize();
       final float imageWidth = pageSize.getWidth() - pageSize.getBorderWidthLeft() - pageSize.getBorderWidthRight();
       final float originalImageWidth = image.getWidth();
-      final float remainingHeight = pageSize.getHeight() - writer.getVerticalPosition(true) - pageSize.getBorderWidthBottom();
+      final float verticalPosition = writer.getVerticalPosition(true);
+      final float height = pageSize.getHeight();
+      final float borderWidthBottom = pageSize.getBorderWidthBottom();
+      final float remainingHeight = verticalPosition + borderWidthBottom;
 
       image.setAlignment(Image.ALIGN_CENTER);
-      image.scaleToFit(imageWidth * 0.8f, remainingHeight * 0.6f);
+      image.scaleToFit(imageWidth * 0.9f, remainingHeight * 0.9f);
       document.add(image);
       document.newPage();
     } catch (BadElementException | IOException e) {

@@ -2,7 +2,11 @@ package ch.bergturbenthal.marathontabelle.web;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
 import java.io.InputStream;
+import java.io.OutputStream;
 import java.time.Duration;
 import java.time.LocalTime;
 import java.util.ArrayList;
@@ -12,6 +16,7 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
 import java.util.concurrent.Callable;
+import java.util.concurrent.atomic.AtomicReference;
 
 import org.springframework.beans.factory.annotation.Autowired;
 
@@ -55,6 +60,8 @@ import com.vaadin.ui.Table.TableDragMode;
 import com.vaadin.ui.TableFieldFactory;
 import com.vaadin.ui.TextField;
 import com.vaadin.ui.UI;
+import com.vaadin.ui.Upload;
+import com.vaadin.ui.Upload.Receiver;
 import com.vaadin.ui.VerticalLayout;
 
 import ch.bergturbenthal.marathontabelle.generator.GeneratePdf;
@@ -214,7 +221,6 @@ public class MyVaadinUI extends UI {
 				else
 					item = marathonListContainer.addItem(marathonName);
 				item.getItemProperty("name").setValue(marathonName);
-
 			}
 			for (final Object itemId : remainingItems) {
 				marathonListContainer.removeItem(itemId);
@@ -291,7 +297,8 @@ public class MyVaadinUI extends UI {
 			@Override
 			public InputStream getStream() {
 				final ByteArrayOutputStream os = new ByteArrayOutputStream();
-				new GeneratePdf().makePdf(os, binders.getCurrentData(), (String) selectDriverCombo.getValue());
+				new GeneratePdf().withCurrentDirectory(storage.getBlobRoot()).makePdf(os, binders.getCurrentData(),
+						(String) selectDriverCombo.getValue());
 				return new ByteArrayInputStream(os.toByteArray());
 			}
 		}, makeOutputFilename());
@@ -429,21 +436,22 @@ public class MyVaadinUI extends UI {
 				return comboBox;
 			}
 		});
-		table.addGeneratedColumn("Generieren", new ColumnGenerator() {
-
-			@Override
-			public Object generateCell(final Table source, final Object itemId, final Object columnId) {
-				final DriverData driverData = (DriverData) itemId;
-				final Button button = new Button("PDF");
-				button.addClickListener(new ClickListener() {
-					@Override
-					public void buttonClick(final ClickEvent event) {
-						// showPdfHandler.showPdf(driverData.getName());
-					}
-				});
-				return button;
-			}
-		});
+		// table.addGeneratedColumn("Generieren", new ColumnGenerator() {
+		//
+		// @Override
+		// public Object generateCell(final Table source, final Object itemId,
+		// final Object columnId) {
+		// final DriverData driverData = (DriverData) itemId;
+		// final Button button = new Button("PDF");
+		// button.addClickListener(new ClickListener() {
+		// @Override
+		// public void buttonClick(final ClickEvent event) {
+		// // showPdfHandler.showPdf(driverData.getName());
+		// }
+		// });
+		// return button;
+		// }
+		// });
 		table.addGeneratedColumn("Phase A Zettel", createPhaseCheckbox(Phase.A));
 		table.addGeneratedColumn("Transfer Zettel", createPhaseCheckbox(Phase.TRANSFER));
 		table.addGeneratedColumn("Phase B Zettel", createPhaseCheckbox(Phase.B));
@@ -538,6 +546,11 @@ public class MyVaadinUI extends UI {
 		// layout.addComponent(binder.buildAndBind("Minimale Zeit", "minTime"));
 		layout.addComponent(binder.buildAndBind("Name der Phase", "phaseName"));
 		layout.addComponent(binder.buildAndBind("Länge in m", "length"));
+		final Upload fileUpload = new Upload();
+		fileUpload.setCaption("Bild");
+		layout.addComponent(fileUpload);
+		final Button removeImageButton = new Button("Bild löschen");
+		layout.addComponent(removeImageButton);
 		// layout.addComponent(binder.buildAndBind("Geschwindigkeit im m/s",
 		// "velocity"));
 		// layout.addComponent(binder.buildAndBind("Tabelle", "entries"));
@@ -709,6 +722,19 @@ public class MyVaadinUI extends UI {
 				timeEntryItemContainer.addBean(new TimeEntry());
 			}
 		}));
+		final AtomicReference<PhaseDataCompetition> currentPhaseDataReference = new AtomicReference<PhaseDataCompetition>(
+				null);
+		removeImageButton.addClickListener(new ClickListener() {
+
+			@Override
+			public void buttonClick(final ClickEvent event) {
+				final PhaseDataCompetition currentData = currentPhaseDataReference.get();
+				if (currentData == null)
+					return;
+				currentData.setImageName(null);
+				removeImageButton.setEnabled(false);
+			}
+		});
 
 		final DataBinder<MarathonData> phaseDataBinder = new DataBinder<MarathonData>() {
 
@@ -718,6 +744,7 @@ public class MyVaadinUI extends UI {
 			public void bindData(final MarathonData phaseData) {
 				this.data = phaseData;
 				final PhaseDataCompetition dataCompetition = data.getCompetitionPhases().get(phase);
+				currentPhaseDataReference.set(dataCompetition);
 				binder.setItemDataSource(dataCompetition);
 				timeEntryItemContainer.removeAllItems();
 				timeEntryItemContainer.addAll(dataCompetition.getEntries());
@@ -745,6 +772,21 @@ public class MyVaadinUI extends UI {
 						}
 					});
 				}
+				fileUpload.setReceiver(new Receiver() {
+
+					@Override
+					public OutputStream receiveUpload(final String filename, final String mimeType) {
+						final File storeFile = storage.createStoreFile(filename);
+						dataCompetition.setImageName(storeFile.getName());
+						removeImageButton.setEnabled(true);
+						try {
+							return new FileOutputStream(storeFile);
+						} catch (final FileNotFoundException e) {
+							throw new RuntimeException("Cannot write image to " + storeFile, e);
+						}
+					}
+				});
+				removeImageButton.setEnabled(dataCompetition.getImageName() != null);
 			}
 
 			@Override
