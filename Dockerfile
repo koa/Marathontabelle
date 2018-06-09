@@ -15,4 +15,5 @@ FROM gcr.io/distroless/java
 COPY --from=build-env /app /app
 WORKDIR /app
 VOLUME /data
+EXPOSE 8080/tcp
 CMD ["app.jar"]
