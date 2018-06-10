@@ -21,16 +21,6 @@ import java.util.concurrent.atomic.AtomicReference;
 import org.springframework.beans.factory.annotation.Autowired;
 
 import com.vaadin.annotations.Theme;
-import com.vaadin.data.Container;
-import com.vaadin.data.Item;
-import com.vaadin.data.Property.ValueChangeEvent;
-import com.vaadin.data.Property.ValueChangeListener;
-import com.vaadin.data.fieldgroup.BeanFieldGroup;
-import com.vaadin.data.fieldgroup.FieldGroup.CommitException;
-import com.vaadin.data.util.BeanItemContainer;
-import com.vaadin.data.util.IndexedContainer;
-import com.vaadin.data.util.ObjectProperty;
-import com.vaadin.event.DataBoundTransferable;
 import com.vaadin.event.dd.DragAndDropEvent;
 import com.vaadin.event.dd.DropHandler;
 import com.vaadin.event.dd.acceptcriteria.AcceptCriterion;
@@ -40,29 +30,36 @@ import com.vaadin.server.StreamResource.StreamSource;
 import com.vaadin.server.VaadinRequest;
 import com.vaadin.shared.ui.dd.VerticalDropLocation;
 import com.vaadin.spring.annotation.SpringUI;
-import com.vaadin.ui.AbstractSelect.AbstractSelectTargetDetails;
-import com.vaadin.ui.AbstractTextField;
 import com.vaadin.ui.BrowserFrame;
 import com.vaadin.ui.Button;
-import com.vaadin.ui.Button.ClickEvent;
-import com.vaadin.ui.Button.ClickListener;
-import com.vaadin.ui.CheckBox;
-import com.vaadin.ui.ComboBox;
 import com.vaadin.ui.Component;
-import com.vaadin.ui.Field;
 import com.vaadin.ui.FormLayout;
 import com.vaadin.ui.Label;
-import com.vaadin.ui.ListSelect;
 import com.vaadin.ui.TabSheet;
-import com.vaadin.ui.Table;
-import com.vaadin.ui.Table.ColumnGenerator;
-import com.vaadin.ui.Table.TableDragMode;
-import com.vaadin.ui.TableFieldFactory;
-import com.vaadin.ui.TextField;
 import com.vaadin.ui.UI;
 import com.vaadin.ui.Upload;
 import com.vaadin.ui.Upload.Receiver;
 import com.vaadin.ui.VerticalLayout;
+import com.vaadin.v7.data.Container;
+import com.vaadin.v7.data.Item;
+import com.vaadin.v7.data.Property;
+import com.vaadin.v7.data.fieldgroup.BeanFieldGroup;
+import com.vaadin.v7.data.fieldgroup.FieldGroup.CommitException;
+import com.vaadin.v7.data.util.BeanItemContainer;
+import com.vaadin.v7.data.util.IndexedContainer;
+import com.vaadin.v7.data.util.ObjectProperty;
+import com.vaadin.v7.event.DataBoundTransferable;
+import com.vaadin.v7.ui.AbstractSelect.AbstractSelectTargetDetails;
+import com.vaadin.v7.ui.AbstractTextField;
+import com.vaadin.v7.ui.CheckBox;
+import com.vaadin.v7.ui.ComboBox;
+import com.vaadin.v7.ui.Field;
+import com.vaadin.v7.ui.ListSelect;
+import com.vaadin.v7.ui.Table;
+import com.vaadin.v7.ui.Table.ColumnGenerator;
+import com.vaadin.v7.ui.Table.TableDragMode;
+import com.vaadin.v7.ui.TableFieldFactory;
+import com.vaadin.v7.ui.TextField;
 
 import ch.bergturbenthal.marathontabelle.generator.GeneratePdf;
 import ch.bergturbenthal.marathontabelle.model.DriverData;
@@ -154,10 +151,10 @@ public class MyVaadinUI extends UI {
 				final CheckBox checkBox = new CheckBox();
 				final ObjectProperty<Boolean> dataSource = new ObjectProperty<Boolean>(
 						Boolean.valueOf(smallSheets.contains(phase)));
-				dataSource.addValueChangeListener(new ValueChangeListener() {
+				dataSource.addValueChangeListener(new Property.ValueChangeListener() {
 
 					@Override
-					public void valueChange(final ValueChangeEvent event) {
+					public void valueChange(final Property.ValueChangeEvent event) {
 						if (dataSource.getValue().booleanValue()) {
 							smallSheets.add(phase);
 						} else {
@@ -181,12 +178,13 @@ public class MyVaadinUI extends UI {
 				final ObjectProperty<LocalTime> property = new ObjectProperty<LocalTime>(
 						defaultIfNull(driverData.getStartTimes().get(phase), LocalTime.of(0, 0)));
 				field.setPropertyDataSource(property);
-				property.addValueChangeListener(new ValueChangeListener() {
+				property.addValueChangeListener(new Property.ValueChangeListener() {
 
 					@Override
-					public void valueChange(final ValueChangeEvent event) {
+					public void valueChange(final Property.ValueChangeEvent event) {
 						driverData.getStartTimes().put(phase, property.getValue());
 					}
+
 				});
 				return field;
 			}
@@ -313,19 +311,19 @@ public class MyVaadinUI extends UI {
 
 		layout.setSizeFull();
 
-		selectCompetionComboBox.addValueChangeListener(new ValueChangeListener() {
+		selectCompetionComboBox.addValueChangeListener(new Property.ValueChangeListener() {
 
 			@Override
-			public void valueChange(final ValueChangeEvent event) {
+			public void valueChange(final Property.ValueChangeEvent event) {
 				final MarathonData marathonData = loadMarathonData((String) selectCompetionComboBox.getValue());
 				binders.bindData(marathonData);
 			}
 		});
 
-		selectDriverCombo.addValueChangeListener(new ValueChangeListener() {
+		selectDriverCombo.addValueChangeListener(new Property.ValueChangeListener() {
 
 			@Override
-			public void valueChange(final ValueChangeEvent event) {
+			public void valueChange(final Property.ValueChangeEvent event) {
 				binders.commitHandler();
 				saveMarathonData(binders.getCurrentData());
 				source.setFilename(makeOutputFilename());
@@ -333,9 +331,9 @@ public class MyVaadinUI extends UI {
 			}
 		});
 
-		final Button saveButton = new Button("Übernehmen", new ClickListener() {
+		final Button saveButton = new Button("Übernehmen", new Button.ClickListener() {
 			@Override
-			public void buttonClick(final ClickEvent event) {
+			public void buttonClick(final Button.ClickEvent event) {
 				binders.commitHandler();
 				saveMarathonData(binders.getCurrentData());
 				source.setFilename(makeOutputFilename());
@@ -398,10 +396,10 @@ public class MyVaadinUI extends UI {
 		layout.addComponent(categoryListSelect);
 		final Button removeItemButton = new Button("Kategorie löschen");
 		layout.addComponent(removeItemButton);
-		removeItemButton.addClickListener(new ClickListener() {
+		removeItemButton.addClickListener(new Button.ClickListener() {
 
 			@Override
-			public void buttonClick(final ClickEvent event) {
+			public void buttonClick(final Button.ClickEvent event) {
 				categoryListContainer.removeItem(categoryListSelect.getValue());
 			}
 		});
@@ -426,10 +424,10 @@ public class MyVaadinUI extends UI {
 
 				final ObjectProperty<String> property = new ObjectProperty<String>(category);
 				comboBox.setPropertyDataSource(property);
-				property.addValueChangeListener(new ValueChangeListener() {
+				property.addValueChangeListener(new Property.ValueChangeListener() {
 
 					@Override
-					public void valueChange(final ValueChangeEvent event) {
+					public void valueChange(final Property.ValueChangeEvent event) {
 						driverData.setCategory(property.getValue());
 					}
 				});
@@ -464,10 +462,10 @@ public class MyVaadinUI extends UI {
 			@Override
 			public Object generateCell(final Table source, final Object itemId, final Object columnId) {
 				final Button button = new Button("-");
-				button.addClickListener(new ClickListener() {
+				button.addClickListener(new Button.ClickListener() {
 
 					@Override
-					public void buttonClick(final ClickEvent event) {
+					public void buttonClick(final Button.ClickEvent event) {
 						driverContainer.removeItem(itemId);
 					}
 				});
@@ -480,10 +478,10 @@ public class MyVaadinUI extends UI {
 		// table.setNullSelectionAllowed(true);
 		layout.addComponent(table);
 		final Button addDriverButton = new Button("Neuer Fahrer");
-		addDriverButton.addClickListener(new ClickListener() {
+		addDriverButton.addClickListener(new Button.ClickListener() {
 
 			@Override
-			public void buttonClick(final ClickEvent event) {
+			public void buttonClick(final Button.ClickEvent event) {
 				final DriverData driver = new DriverData();
 				driver.setName("Fahrer - " + driverContainer.size());
 				driverContainer.addBean(driver);
@@ -582,10 +580,10 @@ public class MyVaadinUI extends UI {
 				final ObjectProperty<Duration> property = new ObjectProperty<Duration>(
 						defaultIfNull(phaseDataCategory.getMinTime(), Duration.ZERO));
 				field.setPropertyDataSource(property);
-				property.addValueChangeListener(new ValueChangeListener() {
+				property.addValueChangeListener(new Property.ValueChangeListener() {
 
 					@Override
-					public void valueChange(final ValueChangeEvent event) {
+					public void valueChange(final Property.ValueChangeEvent event) {
 						phaseDataCategory.setMinTime(property.getValue());
 					}
 				});
@@ -603,10 +601,10 @@ public class MyVaadinUI extends UI {
 				final ObjectProperty<Duration> property = new ObjectProperty<Duration>(
 						defaultIfNull(phaseDataCategory.getMaxTime(), Duration.ZERO));
 				field.setPropertyDataSource(property);
-				property.addValueChangeListener(new ValueChangeListener() {
+				property.addValueChangeListener(new Property.ValueChangeListener() {
 
 					@Override
-					public void valueChange(final ValueChangeEvent event) {
+					public void valueChange(final Property.ValueChangeEvent event) {
 						phaseDataCategory.setMaxTime(property.getValue());
 					}
 				});
@@ -625,10 +623,10 @@ public class MyVaadinUI extends UI {
 				final ObjectProperty<Double> property = new ObjectProperty<Double>(
 						defaultIfNull(phaseDataCategory.getVelocity(), Double.valueOf(0)));
 				field.setPropertyDataSource(property);
-				property.addValueChangeListener(new ValueChangeListener() {
+				property.addValueChangeListener(new Property.ValueChangeListener() {
 
 					@Override
-					public void valueChange(final ValueChangeEvent event) {
+					public void valueChange(final Property.ValueChangeEvent event) {
 						phaseDataCategory.setVelocity(property.getValue());
 					}
 				});
@@ -689,9 +687,9 @@ public class MyVaadinUI extends UI {
 			@Override
 			public Object generateCell(final Table source, final Object itemId, final Object columnId) {
 				final Button button = new Button("Löschen");
-				button.addClickListener(new ClickListener() {
+				button.addClickListener(new Button.ClickListener() {
 					@Override
-					public void buttonClick(final ClickEvent event) {
+					public void buttonClick(final Button.ClickEvent event) {
 						source.getContainerDataSource().removeItem(itemId);
 					}
 				});
@@ -715,19 +713,19 @@ public class MyVaadinUI extends UI {
 		};
 		table.setTableFieldFactory(tableFieldFactory);
 
-		layout.addComponent(new Button("Neuer Steckenpunkt", new ClickListener() {
+		layout.addComponent(new Button("Neuer Steckenpunkt", new Button.ClickListener() {
 
 			@Override
-			public void buttonClick(final ClickEvent event) {
+			public void buttonClick(final Button.ClickEvent event) {
 				timeEntryItemContainer.addBean(new TimeEntry());
 			}
 		}));
 		final AtomicReference<PhaseDataCompetition> currentPhaseDataReference = new AtomicReference<PhaseDataCompetition>(
 				null);
-		removeImageButton.addClickListener(new ClickListener() {
+		removeImageButton.addClickListener(new Button.ClickListener() {
 
 			@Override
-			public void buttonClick(final ClickEvent event) {
+			public void buttonClick(final Button.ClickEvent event) {
 				final PhaseDataCompetition currentData = currentPhaseDataReference.get();
 				if (currentData == null)
 					return;
@@ -808,10 +806,10 @@ public class MyVaadinUI extends UI {
 				return data;
 			}
 		};
-		layout.addComponent(new Button("Reset Strecke", new ClickListener() {
+		layout.addComponent(new Button("Reset Strecke", new Button.ClickListener() {
 
 			@Override
-			public void buttonClick(final ClickEvent event) {
+			public void buttonClick(final Button.ClickEvent event) {
 				phaseDataBinder.commitHandler();
 
 				final PhaseDataCompetition phaseData = phaseDataBinder.getCurrentData().getCompetitionPhases()

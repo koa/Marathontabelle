@@ -7,11 +7,11 @@ import java.util.Locale;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import com.vaadin.data.Validator;
-import com.vaadin.data.fieldgroup.DefaultFieldGroupFieldFactory;
-import com.vaadin.data.util.converter.Converter;
-import com.vaadin.ui.Field;
-import com.vaadin.ui.TextField;
+import com.vaadin.v7.data.Validator;
+import com.vaadin.v7.data.fieldgroup.DefaultFieldGroupFieldFactory;
+import com.vaadin.v7.data.util.converter.Converter;
+import com.vaadin.v7.ui.Field;
+import com.vaadin.v7.ui.TextField;
 
 import ch.bergturbenthal.marathontabelle.generator.FormatUtil;
 
