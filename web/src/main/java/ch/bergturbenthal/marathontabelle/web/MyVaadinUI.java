@@ -7,59 +7,50 @@ import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.text.DecimalFormat;
+import java.text.NumberFormat;
+import java.text.ParseException;
 import java.time.Duration;
 import java.time.LocalTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
-import java.util.HashSet;
+import java.util.Collection;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
-import java.util.Set;
 import java.util.concurrent.Callable;
 import java.util.concurrent.atomic.AtomicReference;
 
 import org.springframework.beans.factory.annotation.Autowired;
 
 import com.vaadin.annotations.Theme;
-import com.vaadin.event.dd.DragAndDropEvent;
-import com.vaadin.event.dd.DropHandler;
-import com.vaadin.event.dd.acceptcriteria.AcceptCriterion;
-import com.vaadin.event.dd.acceptcriteria.SourceIs;
+import com.vaadin.data.Binder;
+import com.vaadin.data.ValidationException;
+import com.vaadin.data.provider.DataProvider;
+import com.vaadin.data.provider.ListDataProvider;
 import com.vaadin.server.StreamResource;
 import com.vaadin.server.StreamResource.StreamSource;
 import com.vaadin.server.VaadinRequest;
-import com.vaadin.shared.ui.dd.VerticalDropLocation;
 import com.vaadin.spring.annotation.SpringUI;
 import com.vaadin.ui.BrowserFrame;
 import com.vaadin.ui.Button;
-import com.vaadin.ui.Component;
+import com.vaadin.ui.CheckBox;
+import com.vaadin.ui.ComboBox;
 import com.vaadin.ui.FormLayout;
-import com.vaadin.ui.Label;
+import com.vaadin.ui.Grid;
+import com.vaadin.ui.Grid.Column;
+import com.vaadin.ui.HorizontalLayout;
+import com.vaadin.ui.ListSelect;
 import com.vaadin.ui.TabSheet;
+import com.vaadin.ui.TextField;
 import com.vaadin.ui.UI;
 import com.vaadin.ui.Upload;
 import com.vaadin.ui.Upload.Receiver;
 import com.vaadin.ui.VerticalLayout;
-import com.vaadin.v7.data.Container;
-import com.vaadin.v7.data.Item;
-import com.vaadin.v7.data.Property;
-import com.vaadin.v7.data.fieldgroup.BeanFieldGroup;
-import com.vaadin.v7.data.fieldgroup.FieldGroup.CommitException;
-import com.vaadin.v7.data.util.BeanItemContainer;
-import com.vaadin.v7.data.util.IndexedContainer;
-import com.vaadin.v7.data.util.ObjectProperty;
-import com.vaadin.v7.event.DataBoundTransferable;
-import com.vaadin.v7.ui.AbstractSelect.AbstractSelectTargetDetails;
-import com.vaadin.v7.ui.AbstractTextField;
-import com.vaadin.v7.ui.CheckBox;
-import com.vaadin.v7.ui.ComboBox;
-import com.vaadin.v7.ui.Field;
-import com.vaadin.v7.ui.ListSelect;
-import com.vaadin.v7.ui.Table;
-import com.vaadin.v7.ui.Table.ColumnGenerator;
-import com.vaadin.v7.ui.Table.TableDragMode;
-import com.vaadin.v7.ui.TableFieldFactory;
-import com.vaadin.v7.ui.TextField;
+import com.vaadin.ui.components.grid.Editor;
+import com.vaadin.ui.components.grid.GridRowDragger;
+import com.vaadin.ui.themes.ValoTheme;
 
 import ch.bergturbenthal.marathontabelle.generator.GeneratePdf;
 import ch.bergturbenthal.marathontabelle.model.DriverData;
@@ -68,11 +59,12 @@ import ch.bergturbenthal.marathontabelle.model.Phase;
 import ch.bergturbenthal.marathontabelle.model.PhaseDataCategory;
 import ch.bergturbenthal.marathontabelle.model.PhaseDataCompetition;
 import ch.bergturbenthal.marathontabelle.model.TimeEntry;
-import ch.bergturbenthal.marathontabelle.web.binding.DurationFieldFactory;
+import ch.bergturbenthal.marathontabelle.web.binding.LocalTimeField;
+import ch.bergturbenthal.marathontabelle.web.binding.NumberField;
 import ch.bergturbenthal.marathontabelle.web.store.Storage;
 
 @SpringUI
-@Theme("mytheme")
+@Theme(ValoTheme.THEME_NAME)
 @SuppressWarnings("serial")
 public class MyVaadinUI extends UI {
 	private static class BinderCollection<V> implements DataBinder<V> {
@@ -96,15 +88,10 @@ public class MyVaadinUI extends UI {
 		}
 
 		@Override
-		public void commitHandler() {
+		public void commitHandler(final V data) {
 			for (final DataBinder<V> binder : binders) {
-				binder.commitHandler();
+				binder.commitHandler(data);
 			}
-		}
-
-		@Override
-		public V getCurrentData() {
-			return currentData;
 		}
 
 	}
@@ -112,9 +99,8 @@ public class MyVaadinUI extends UI {
 	private static interface DataBinder<V> {
 		void bindData(final V data);
 
-		void commitHandler();
+		void commitHandler(V data);
 
-		V getCurrentData();
 	}
 
 	// @WebServlet(value = "/*", asyncSupported = true)
@@ -128,6 +114,8 @@ public class MyVaadinUI extends UI {
 	// void showPdf(final String driver);
 	// }
 
+	private static final DateTimeFormatter TIME_PATTERN = DateTimeFormatter.ofPattern("HH:mm");
+
 	private final Storage storage;
 
 	@Autowired
@@ -135,60 +123,28 @@ public class MyVaadinUI extends UI {
 		this.storage = storage;
 	}
 
-	private void container2Model(final BeanItemContainer<TimeEntry> itemContainer,
-			final PhaseDataCompetition phaseData) {
-		final List<TimeEntry> entries = phaseData.getEntries();
-		entries.clear();
-		entries.addAll(itemContainer.getItemIds());
+	private void addSmallSheetColumn(final Grid<DriverData> table, final String caption, final Phase phase) {
+		final Column<DriverData, Boolean> smallSheetColumn = table.addColumn(v -> v.getSmallSheets().contains(phase),
+				b -> b ? "x" : "");
+		smallSheetColumn.setCaption(caption);
+		// smallSheetColumn.setEditable(true);
+		final CheckBox smallSheetCheckbox = new CheckBox();
+		smallSheetColumn.setEditorComponent(smallSheetCheckbox, (bean, fieldvalue) -> {
+			if (fieldvalue != null && fieldvalue.booleanValue()) {
+				bean.getSmallSheets().add(phase);
+			} else
+				bean.getSmallSheets().remove(phase);
+		});
 	}
 
-	private ColumnGenerator createPhaseCheckbox(final Phase phase) {
-		return new ColumnGenerator() {
-
-			@Override
-			public Object generateCell(final Table source, final Object itemId, final Object columnId) {
-				final Set<Phase> smallSheets = ((DriverData) itemId).getSmallSheets();
-				final CheckBox checkBox = new CheckBox();
-				final ObjectProperty<Boolean> dataSource = new ObjectProperty<Boolean>(
-						Boolean.valueOf(smallSheets.contains(phase)));
-				dataSource.addValueChangeListener(new Property.ValueChangeListener() {
-
-					@Override
-					public void valueChange(final Property.ValueChangeEvent event) {
-						if (dataSource.getValue().booleanValue()) {
-							smallSheets.add(phase);
-						} else {
-							smallSheets.remove(phase);
-						}
-					}
-				});
-				checkBox.setPropertyDataSource(dataSource);
-				return checkBox;
-			}
-		};
-	}
-
-	private ColumnGenerator createPhaseStartInput(final DurationFieldFactory fieldFactory, final Phase phase) {
-		return new ColumnGenerator() {
-
-			@Override
-			public Object generateCell(final Table source, final Object itemId, final Object columnId) {
-				final DriverData driverData = (DriverData) itemId;
-				final TextField field = fieldFactory.createField(LocalTime.class, TextField.class);
-				final ObjectProperty<LocalTime> property = new ObjectProperty<LocalTime>(
-						defaultIfNull(driverData.getStartTimes().get(phase), LocalTime.of(0, 0)));
-				field.setPropertyDataSource(property);
-				property.addValueChangeListener(new Property.ValueChangeListener() {
-
-					@Override
-					public void valueChange(final Property.ValueChangeEvent event) {
-						driverData.getStartTimes().put(phase, property.getValue());
-					}
-
-				});
-				return field;
-			}
-		};
+	private void addStartTimeColumn(final Grid<DriverData> table, final String caption, final Phase phase) {
+		final Column<DriverData, LocalTime> startTimeColumn = table.addColumn(d -> {
+			return d.getStartTimes().get(phase);
+		});
+		startTimeColumn.setCaption(caption);
+		// startTimeColumn.setEditable(true);
+		startTimeColumn.setEditorComponent(new LocalTimeField(""),
+				(bean, value) -> bean.getStartTimes().put(phase, value));
 	}
 
 	private <T> T defaultIfNull(final T value, final T defValue) {
@@ -203,82 +159,105 @@ public class MyVaadinUI extends UI {
 		return value;
 	}
 
+	private String formatDuration(final Duration duration) {
+		if (duration == null)
+			return "";
+		final StringBuilder sb = new StringBuilder();
+		final long minutes = duration.getSeconds() / 60;
+		sb.append(Long.toString(minutes));
+		sb.append(":");
+		final long seconds = duration.getSeconds() % 60;
+		if (seconds < 10)
+			sb.append("0");
+		sb.append(Long.toString(seconds));
+		return sb.toString();
+	}
+
 	@Override
 	protected void init(final VaadinRequest request) {
 		final TabSheet tabLayout = new TabSheet();
 		final VerticalLayout layout = new VerticalLayout();
-		final IndexedContainer marathonListContainer = new IndexedContainer();
-		marathonListContainer.addContainerProperty("name", String.class, null);
+		final Collection<String> marathonNames = new ArrayList<>();
+		final ListDataProvider<String> marathonListContainer = DataProvider.ofCollection(marathonNames);
 		final Runnable refreshAvailableCompetitions = () -> {
-			final Set<Object> remainingItems = new HashSet<>(marathonListContainer.getItemIds());
-			for (final String marathonName : storage.listMarathons()) {
-
-				final Item item;
-				if (remainingItems.remove(marathonName))
-					item = marathonListContainer.getItem(marathonName);
-				else
-					item = marathonListContainer.addItem(marathonName);
-				item.getItemProperty("name").setValue(marathonName);
-			}
-			for (final Object itemId : remainingItems) {
-				marathonListContainer.removeItem(itemId);
-			}
+			marathonNames.clear();
+			marathonNames.addAll(storage.listMarathons());
+			marathonListContainer.refreshAll();
 		};
 		refreshAvailableCompetitions.run();
-		final ComboBox selectCompetionComboBox = new ComboBox("Veranstaltung wählen", marathonListContainer);
-		layout.addComponent(selectCompetionComboBox);
+		final ComboBox<String> selectCompetionComboBox = new ComboBox<>("Veranstaltung wählen");
+		selectCompetionComboBox.setDataProvider(marathonListContainer);
 		selectCompetionComboBox.setTextInputAllowed(false);
-		selectCompetionComboBox.setNullSelectionAllowed(false);
+		selectCompetionComboBox.setEmptySelectionAllowed(false);
+		// final TextField competitionNameTextField = new TextField("Name der
+		// Veranstaltung");
+
+		layout.addComponent(new HorizontalLayout(selectCompetionComboBox
+		// , competitionNameTextField
+		));
 		layout.addComponent(tabLayout);
 		setContent(layout);
 
 		final BinderCollection<MarathonData> binders = new BinderCollection<MarathonData>();
 
-		binders.commitHandler();
+		binders.appendBinder(new DataBinder<MarathonData>() {
+
+			@Override
+			public void bindData(final MarathonData data) {
+				refreshAvailableCompetitions.run();
+				selectCompetionComboBox.setValue(data.getMarathonName());
+				// competitionNameTextField.setValue(data.getMarathonName());
+			}
+
+			@Override
+			public void commitHandler(final MarathonData data) {
+				// data.setMarathonName(competitionNameTextField.getValue());
+			}
+
+		});
 
 		final FormLayout competitionParameters = new FormLayout();
 		binders.appendBinder(showOverviewData(competitionParameters));
+		competitionParameters.setSizeFull();
 		tabLayout.addTab(competitionParameters, "Übersicht");
 
 		final FormLayout phaseATabContent = new FormLayout();
 		binders.appendBinder(showPhaseData(phaseATabContent, Phase.A));
+		phaseATabContent.setSizeFull();
 		tabLayout.addTab(phaseATabContent, "Phase A");
 
 		final FormLayout phaseDTabContent = new FormLayout();
 		binders.appendBinder(showPhaseData(phaseDTabContent, Phase.TRANSFER));
+		phaseDTabContent.setSizeFull();
 		tabLayout.addTab(phaseDTabContent, "Transfer");
 
 		final FormLayout phaseETabContent = new FormLayout();
 		binders.appendBinder(showPhaseData(phaseETabContent, Phase.B));
+		phaseETabContent.setSizeFull();
 		tabLayout.addTab(phaseETabContent, "Phase B");
 
 		final VerticalLayout outputLayout = new VerticalLayout();
 		final FormLayout outputParameters = new FormLayout();
 
-		final BeanItemContainer<String> driverDataSource = new BeanItemContainer<String>(String.class);
-		final ComboBox selectDriverCombo = new ComboBox("Fahrer", driverDataSource);
-		selectDriverCombo.setNewItemsAllowed(false);
-		selectDriverCombo.setImmediate(true);
+		final Collection<String> driverDataSource = new ArrayList<>();
+		final ListDataProvider<String> driverNamesDataSet = DataProvider.ofCollection(driverDataSource);
+		final ComboBox<String> selectDriverCombo = new ComboBox<>("Fahrer");
+		selectDriverCombo.setDataProvider(driverNamesDataSet);
+		selectDriverCombo.setTextInputAllowed(false);
 		outputLayout.addComponent(selectDriverCombo);
 		binders.appendBinder(new DataBinder<MarathonData>() {
 
-			private MarathonData data;
-
 			@Override
 			public void bindData(final MarathonData data) {
-				this.data = data;
-				driverDataSource.removeAllItems();
+				driverDataSource.clear();
 				driverDataSource.addAll(data.getDrivers().keySet());
+				driverNamesDataSet.refreshAll();
 			}
 
 			@Override
-			public void commitHandler() {
+			public void commitHandler(final MarathonData data) {
 			}
 
-			@Override
-			public MarathonData getCurrentData() {
-				return data;
-			}
 		});
 
 		// new Button("Erstelle PDF");
@@ -294,9 +273,11 @@ public class MyVaadinUI extends UI {
 
 			@Override
 			public InputStream getStream() {
+				final MarathonData data = new MarathonData();
+				binders.commitHandler(data);
 				final ByteArrayOutputStream os = new ByteArrayOutputStream();
-				new GeneratePdf().withCurrentDirectory(storage.getBlobRoot()).makePdf(os, binders.getCurrentData(),
-						(String) selectDriverCombo.getValue());
+				new GeneratePdf().withCurrentDirectory(storage.getBlobRoot()).makePdf(os, data,
+						selectDriverCombo.getValue());
 				return new ByteArrayInputStream(os.toByteArray());
 			}
 		}, makeOutputFilename());
@@ -311,34 +292,27 @@ public class MyVaadinUI extends UI {
 
 		layout.setSizeFull();
 
-		selectCompetionComboBox.addValueChangeListener(new Property.ValueChangeListener() {
-
-			@Override
-			public void valueChange(final Property.ValueChangeEvent event) {
-				final MarathonData marathonData = loadMarathonData((String) selectCompetionComboBox.getValue());
-				binders.bindData(marathonData);
-			}
+		selectCompetionComboBox.addValueChangeListener(event -> {
+			final MarathonData loadedMarathonData = loadMarathonData(selectCompetionComboBox.getValue());
+			binders.bindData(loadedMarathonData);
 		});
 
-		selectDriverCombo.addValueChangeListener(new Property.ValueChangeListener() {
-
-			@Override
-			public void valueChange(final Property.ValueChangeEvent event) {
-				binders.commitHandler();
-				saveMarathonData(binders.getCurrentData());
-				source.setFilename(makeOutputFilename());
-				pdf.markAsDirty();
-			}
+		selectDriverCombo.addValueChangeListener(event -> {
+			final MarathonData data = new MarathonData();
+			binders.commitHandler(data);
+			saveMarathonData(data);
+			source.setFilename(makeOutputFilename());
+			pdf.markAsDirty();
 		});
 
 		final Button saveButton = new Button("Übernehmen", new Button.ClickListener() {
 			@Override
 			public void buttonClick(final Button.ClickEvent event) {
-				binders.commitHandler();
-				saveMarathonData(binders.getCurrentData());
+				final MarathonData data = new MarathonData();
+				binders.commitHandler(data);
+				saveMarathonData(data);
 				source.setFilename(makeOutputFilename());
 				pdf.markAsDirty();
-				refreshAvailableCompetitions.run();
 			}
 		});
 		layout.addComponent(saveButton);
@@ -366,10 +340,16 @@ public class MyVaadinUI extends UI {
 		return "marathon-" + System.currentTimeMillis() + ".pdf";
 	}
 
-	private void model2Container(final PhaseDataCompetition phaseData,
-			final BeanItemContainer<TimeEntry> itemContainer) {
-		itemContainer.removeAllItems();
-		itemContainer.addAll(phaseData.getEntries());
+	private Duration parseDuration(final String value) {
+		if (value == null || value.isEmpty())
+			return null;
+		final String[] parts = value.split(":", 2);
+		long secondCount;
+		if (parts.length == 1) {
+			secondCount = Long.parseLong(parts[0]);
+		} else
+			secondCount = Long.parseLong(parts[0]) * 60 + Long.parseLong(parts[1]);
+		return Duration.ofSeconds(secondCount);
 	}
 
 	private void saveMarathonData(final MarathonData data) {
@@ -385,14 +365,15 @@ public class MyVaadinUI extends UI {
 
 	private DataBinder<MarathonData> showOverviewData(final FormLayout layout) {
 		layout.setMargin(true);
-		final BeanFieldGroup<MarathonData> binder = new BeanFieldGroup<MarathonData>(MarathonData.class);
-		layout.addComponent(binder.buildAndBind("Veranstaltung", "marathonName"));
-		final BeanItemContainer<String> categoryListContainer = new BeanItemContainer<String>(String.class);
+		final Binder<MarathonData> binder = new Binder<>();
+		final TextField competitionField = new TextField("Veranstaltung");
+		binder.bind(competitionField, MarathonData::getMarathonName, MarathonData::setMarathonName);
+		layout.addComponent(competitionField);
+		final List<String> categoryList = new ArrayList<>();
+		final ListDataProvider<String> categoryListDataProvider = DataProvider.ofCollection(categoryList);
 
-		final ListSelect categoryListSelect = new ListSelect("Kategorieen", categoryListContainer);
-		categoryListSelect.setNewItemsAllowed(true);
-		categoryListSelect.setNullSelectionAllowed(false);
-		categoryListSelect.setMultiSelect(false);
+		final ListSelect<String> categoryListSelect = new ListSelect<>("Kategorieen");
+		categoryListSelect.setDataProvider(categoryListDataProvider);
 		layout.addComponent(categoryListSelect);
 		final Button removeItemButton = new Button("Kategorie löschen");
 		layout.addComponent(removeItemButton);
@@ -400,81 +381,48 @@ public class MyVaadinUI extends UI {
 
 			@Override
 			public void buttonClick(final Button.ClickEvent event) {
-				categoryListContainer.removeItem(categoryListSelect.getValue());
+				categoryList.remove(categoryListSelect.getValue());
+				categoryListDataProvider.refreshAll();
 			}
 		});
 		// final ListSelect categoryList = new ListSelect("Kategorieen");
 		// layout.addComponent(categoryList);
 
-		final BeanItemContainer<DriverData> driverContainer = new BeanItemContainer<DriverData>(DriverData.class);
+		final List<DriverData> driverList = new ArrayList<>();
 
-		final Table table = new Table("Fahrer");
-		table.setContainerDataSource(driverContainer);
-		table.removeContainerProperty("smallSheets");
-		table.removeContainerProperty("startTimes");
-		table.removeContainerProperty("category");
-		table.addGeneratedColumn("Kategorie", new ColumnGenerator() {
+		final ListDataProvider<DriverData> driverListDataProvider = DataProvider.ofCollection(driverList);
+		final Grid<DriverData> table = new Grid<DriverData>("Fahrer", driverListDataProvider);
+		final Column<DriverData, String> nameColumn = table.addColumn(v -> v.getName());
+		nameColumn.setEditorComponent(new TextField(), DriverData::setName);
+		nameColumn.setCaption("Fahrer");
+		final Column<DriverData, String> categoryColumn = table.addColumn(v -> v.getCategory());
+		categoryColumn.setCaption("Kategorie");
+		final ComboBox<String> columnEditor = new ComboBox<>();
+		columnEditor.setDataProvider(categoryListDataProvider);
+		columnEditor.setEmptySelectionAllowed(false);
+		categoryColumn.setEditorComponent(columnEditor, DriverData::setCategory);
 
-			@Override
-			public Object generateCell(final Table source, final Object itemId, final Object columnId) {
-				final ComboBox comboBox = new ComboBox();
-				comboBox.setContainerDataSource(categoryListContainer);
-				final DriverData driverData = (DriverData) itemId;
-				final String category = driverData.getCategory() == null ? "" : driverData.getCategory();
+		addSmallSheetColumn(table, "Phase A Zettel", Phase.A);
+		addSmallSheetColumn(table, "Transfer Zettel", Phase.TRANSFER);
+		addSmallSheetColumn(table, "Phase B Zettel", Phase.B);
 
-				final ObjectProperty<String> property = new ObjectProperty<String>(category);
-				comboBox.setPropertyDataSource(property);
-				property.addValueChangeListener(new Property.ValueChangeListener() {
+		addStartTimeColumn(table, "Phase A Start", Phase.A);
+		addStartTimeColumn(table, "Transfer Start", Phase.TRANSFER);
+		addStartTimeColumn(table, "Phase B Start", Phase.B);
 
-					@Override
-					public void valueChange(final Property.ValueChangeEvent event) {
-						driverData.setCategory(property.getValue());
-					}
-				});
-				return comboBox;
-			}
+		table.addComponentColumn(driverData -> {
+			return new Button("-", clickEvent -> {
+				driverList.remove(driverData);
+				driverListDataProvider.refreshAll();
+			});
 		});
-		// table.addGeneratedColumn("Generieren", new ColumnGenerator() {
-		//
-		// @Override
-		// public Object generateCell(final Table source, final Object itemId,
-		// final Object columnId) {
-		// final DriverData driverData = (DriverData) itemId;
-		// final Button button = new Button("PDF");
-		// button.addClickListener(new ClickListener() {
-		// @Override
-		// public void buttonClick(final ClickEvent event) {
-		// // showPdfHandler.showPdf(driverData.getName());
-		// }
-		// });
-		// return button;
-		// }
-		// });
-		table.addGeneratedColumn("Phase A Zettel", createPhaseCheckbox(Phase.A));
-		table.addGeneratedColumn("Transfer Zettel", createPhaseCheckbox(Phase.TRANSFER));
-		table.addGeneratedColumn("Phase B Zettel", createPhaseCheckbox(Phase.B));
-		final DurationFieldFactory fieldFactory = new DurationFieldFactory();
-		table.addGeneratedColumn("Phase A Start", createPhaseStartInput(fieldFactory, Phase.A));
-		table.addGeneratedColumn("Transfer Start", createPhaseStartInput(fieldFactory, Phase.TRANSFER));
-		table.addGeneratedColumn("Phase D Start", createPhaseStartInput(fieldFactory, Phase.B));
-		table.addGeneratedColumn("Fahrer Löschen", new ColumnGenerator() {
+		table.setWidth(100, Unit.PERCENTAGE);
 
-			@Override
-			public Object generateCell(final Table source, final Object itemId, final Object columnId) {
-				final Button button = new Button("-");
-				button.addClickListener(new Button.ClickListener() {
-
-					@Override
-					public void buttonClick(final Button.ClickEvent event) {
-						driverContainer.removeItem(itemId);
-					}
-				});
-				return button;
-			}
+		final Editor<DriverData> editor = table.getEditor();
+		editor.setEnabled(true);
+		editor.addSaveListener(saveEvent -> {
+			driverListDataProvider.refreshAll();
 		});
-
-		table.setEditable(true);
-		table.setSortEnabled(false);
 		// table.setNullSelectionAllowed(true);
 		layout.addComponent(table);
 		final Button addDriverButton = new Button("Neuer Fahrer");
@@ -483,67 +431,74 @@ public class MyVaadinUI extends UI {
 			@Override
 			public void buttonClick(final Button.ClickEvent event) {
 				final DriverData driver = new DriverData();
-				driver.setName("Fahrer - " + driverContainer.size());
-				driverContainer.addBean(driver);
+				driver.setName("Fahrer - " + driverList.size());
+				driverList.add(driver);
+				driverListDataProvider.refreshAll();
 			}
 		});
 		layout.addComponent(addDriverButton);
 
 		return new DataBinder<MarathonData>() {
 
-			private MarathonData data;
-
 			@Override
 			public void bindData(final MarathonData data) {
-				this.data = data;
-				binder.setItemDataSource(data);
-				categoryListContainer.removeAllItems();
-				for (final String category : data.getCategories()) {
-					categoryListContainer.addBean(category);
-				}
-				driverContainer.removeAllItems();
-				for (final DriverData driver : data.getDrivers().values()) {
-					driverContainer.addBean(driver);
-				}
+				binder.readBean(data);
+
+				categoryList.clear();
+				categoryList.addAll(data.getCategories());
+				categoryListDataProvider.refreshAll();
+
+				driverList.clear();
+				driverList.addAll(data.getDrivers().values());
+				driverListDataProvider.refreshAll();
 			}
 
 			@Override
-			public void commitHandler() {
+			public void commitHandler(final MarathonData data) {
 				try {
-					binder.commit();
+					binder.writeBean(data);
 					final List<String> categories = data.getCategories();
 					categories.clear();
-					categories.addAll(categoryListContainer.getItemIds());
+					categories.addAll(categoryList);
 					final Map<String, DriverData> drivers = data.getDrivers();
 					drivers.clear();
-					for (final DriverData driver : driverContainer.getItemIds()) {
+					for (final DriverData driver : driverList) {
 						drivers.put(driver.getName(), driver);
 					}
-				} catch (final CommitException e) {
+				} catch (final ValidationException e) {
 					throw new RuntimeException("Cannot commit", e);
 				}
 			}
 
-			@Override
-			public MarathonData getCurrentData() {
-				return data;
-			}
 		};
 	}
 
 	private DataBinder<MarathonData> showPhaseData(final FormLayout layout, final Phase phase) {
 		layout.setMargin(true);
-		final BeanFieldGroup<PhaseDataCompetition> binder = new BeanFieldGroup<PhaseDataCompetition>(
-				PhaseDataCompetition.class);
-		final DurationFieldFactory fieldFactory = new DurationFieldFactory();
-		binder.setFieldFactory(fieldFactory);
+		final Binder<PhaseDataCompetition> binder = new Binder<PhaseDataCompetition>(PhaseDataCompetition.class);
+		// final DurationFieldFactory fieldFactory = new DurationFieldFactory();
+		// binder.setFieldFactory(fieldFactory);
 
 		// layout.addComponent(binder.buildAndBind("geplante Startzeit",
 		// "startTime"));
 		// layout.addComponent(binder.buildAndBind("Maximale Zeit", "maxTime"));
 		// layout.addComponent(binder.buildAndBind("Minimale Zeit", "minTime"));
-		layout.addComponent(binder.buildAndBind("Name der Phase", "phaseName"));
-		layout.addComponent(binder.buildAndBind("Länge in m", "length"));
+		final TextField phaseNameField = new TextField("Name der Phase");
+		binder.bind(phaseNameField, p -> p.getPhaseName(), (p, v) -> p.setPhaseName(v));
+		layout.addComponent(phaseNameField);
+
+		final TextField lengthField = new TextField("Länge in m");
+		binder.bind(lengthField, p -> {
+			final Integer length = p.getLength();
+			if (length == null) {
+				return null;
+			} else
+				return Integer.toString(length);
+		}, (p, v) -> {
+			p.setLength(Integer.parseInt(v));
+		});
+		layout.addComponent(lengthField);
+
 		final Upload fileUpload = new Upload();
 		fileUpload.setCaption("Bild");
 		layout.addComponent(fileUpload);
@@ -553,171 +508,86 @@ public class MyVaadinUI extends UI {
 		// "velocity"));
 		// layout.addComponent(binder.buildAndBind("Tabelle", "entries"));
 
-		final BeanItemContainer<Entry<String, PhaseDataCategory>> categoryTimesItemContainer = new BeanItemContainer<Map.Entry<String, PhaseDataCategory>>(
-				Map.Entry.class);
-		final Table timesTable = new Table("Zeiten");
-		timesTable.setContainerDataSource(categoryTimesItemContainer);
+		final List<Entry<String, PhaseDataCategory>> categoryTimesList = new ArrayList<>();
+
+		final ListDataProvider<Entry<String, PhaseDataCategory>> categoryTimesProvider = DataProvider
+				.ofCollection(categoryTimesList);
+
+		final Grid<Entry<String, PhaseDataCategory>> timesTable = new Grid<>("Zeiten", categoryTimesProvider);
 		timesTable.setHeight("8em");
-		timesTable.removeContainerProperty("key");
-		timesTable.removeContainerProperty("value");
-		timesTable.addGeneratedColumn("Kategorie", new ColumnGenerator() {
+		timesTable.setWidth(100, Unit.PERCENTAGE);
 
-			@Override
-			public Object generateCell(final Table source, final Object itemId, final Object columnId) {
-				@SuppressWarnings("unchecked")
-				final Entry<String, PhaseDataCategory> entry = (Entry<String, PhaseDataCategory>) itemId;
-				return new Label(entry.getKey());
-			}
-		});
-		timesTable.addGeneratedColumn("Min. Zeit", new ColumnGenerator() {
+		final Column<Entry<String, PhaseDataCategory>, String> categoryColumn = timesTable.addColumn(e -> e.getKey());
+		categoryColumn.setCaption("Kategorie");
 
-			@Override
-			public Object generateCell(final Table source, final Object itemId, final Object columnId) {
-				@SuppressWarnings("unchecked")
-				final Entry<String, PhaseDataCategory> entry = (Entry<String, PhaseDataCategory>) itemId;
-				final TextField field = fieldFactory.createField(Duration.class, TextField.class);
-				final PhaseDataCategory phaseDataCategory = entry.getValue();
-				final ObjectProperty<Duration> property = new ObjectProperty<Duration>(
-						defaultIfNull(phaseDataCategory.getMinTime(), Duration.ZERO));
-				field.setPropertyDataSource(property);
-				property.addValueChangeListener(new Property.ValueChangeListener() {
+		final Column<Entry<String, PhaseDataCategory>, String> minTimeColumn = timesTable
+				.addColumn(e -> formatDuration(e.getValue().getMinTime()));
+		minTimeColumn.setCaption("Min. Zeit");
+		minTimeColumn.setEditorComponent(new TextField(), (b, v) -> b.getValue().setMinTime(parseDuration(v)));
 
-					@Override
-					public void valueChange(final Property.ValueChangeEvent event) {
-						phaseDataCategory.setMinTime(property.getValue());
-					}
-				});
-				return field;
-			}
-		});
-		timesTable.addGeneratedColumn("Max. Zeit", new ColumnGenerator() {
+		final Column<Entry<String, PhaseDataCategory>, String> maxTimeColumn = timesTable
+				.addColumn(e -> formatDuration(e.getValue().getMaxTime()));
+		maxTimeColumn.setCaption("Max. Zeit");
+		maxTimeColumn.setEditorComponent(new TextField(), (b, v) -> b.getValue().setMaxTime(parseDuration(v)));
 
-			@Override
-			public Object generateCell(final Table source, final Object itemId, final Object columnId) {
-				@SuppressWarnings("unchecked")
-				final Entry<String, PhaseDataCategory> entry = (Entry<String, PhaseDataCategory>) itemId;
-				final TextField field = fieldFactory.createField(Duration.class, TextField.class);
-				final PhaseDataCategory phaseDataCategory = entry.getValue();
-				final ObjectProperty<Duration> property = new ObjectProperty<Duration>(
-						defaultIfNull(phaseDataCategory.getMaxTime(), Duration.ZERO));
-				field.setPropertyDataSource(property);
-				property.addValueChangeListener(new Property.ValueChangeListener() {
+		final NumberFormat velocityPattern = new DecimalFormat("00");
 
-					@Override
-					public void valueChange(final Property.ValueChangeEvent event) {
-						phaseDataCategory.setMaxTime(property.getValue());
-					}
-				});
-				return field;
-			}
-		});
-		timesTable.addGeneratedColumn("Geschw.", new ColumnGenerator() {
-
-			@Override
-			public Object generateCell(final Table source, final Object itemId, final Object columnId) {
-				@SuppressWarnings("unchecked")
-				final Entry<String, PhaseDataCategory> entry = (Entry<String, PhaseDataCategory>) itemId;
-				final PhaseDataCategory phaseDataCategory = entry.getValue();
-				phaseDataCategory.getVelocity();
-				final TextField field = fieldFactory.createField(Double.class, TextField.class);
-				final ObjectProperty<Double> property = new ObjectProperty<Double>(
-						defaultIfNull(phaseDataCategory.getVelocity(), Double.valueOf(0)));
-				field.setPropertyDataSource(property);
-				property.addValueChangeListener(new Property.ValueChangeListener() {
-
-					@Override
-					public void valueChange(final Property.ValueChangeEvent event) {
-						phaseDataCategory.setVelocity(property.getValue());
-					}
-				});
-				return field;
+		final Column<Entry<String, PhaseDataCategory>, String> velocityColumn = timesTable
+				.addColumn(e -> velocityPattern.format(defaultIfNull(e.getValue().getVelocity(), 0)));
+		velocityColumn.setCaption("Geschw.");
+		velocityColumn.setEditorComponent(new TextField(), (b, v) -> {
+			try {
+				b.getValue().setVelocity(velocityPattern.parse(v).doubleValue());
+			} catch (final ParseException e1) {
+				b.getValue().setVelocity(null);
 			}
 		});
 
+		final Editor<Entry<String, PhaseDataCategory>> timesEditor = timesTable.getEditor();
+		timesEditor.addSaveListener(saveEvent -> categoryTimesProvider.refreshAll());
+		timesEditor.setEnabled(true);
 		layout.addComponent(timesTable);
 
-		final BeanItemContainer<TimeEntry> timeEntryItemContainer = new BeanItemContainer<TimeEntry>(TimeEntry.class);
+		final List<TimeEntry> timeEntryList = new ArrayList<>();
+		final ListDataProvider<TimeEntry> timeEntryProvider = DataProvider.ofCollection(timeEntryList);
 
-		final Table table = new Table("Strecke");
-		table.setContainerDataSource(timeEntryItemContainer);
-		table.setEditable(true);
-		table.setSortEnabled(false);
-		table.setNullSelectionAllowed(true);
+		final Grid<TimeEntry> table = new Grid<>("Strecke", timeEntryProvider);
+
+		final Column<TimeEntry, Double> positionColumn = table.addColumn(e -> toDouble(e.getPosition()), n -> n + " m");
+		positionColumn.setCaption("Position");
+		positionColumn.setEditorComponent(new NumberField("", DecimalFormat.getIntegerInstance()),
+				(b, n) -> b.setPosition(toInteger(n)));
+
+		final Column<TimeEntry, String> commentColumn = table.addColumn(e -> e.getComment());
+		commentColumn.setCaption("Text");
+		commentColumn.setEditorComponent(new TextField(), TimeEntry::setComment);
+
+		final Column<TimeEntry, Boolean> onlySmallSheetColumn = table.addColumn(e -> e.isOnlySmallSheet(),
+				v -> v ? "x" : "");
+		onlySmallSheetColumn.setEditorComponent(new CheckBox(), TimeEntry::setOnlySmallSheet);
+
+		final Editor<TimeEntry> tableEditor = table.getEditor();
+		tableEditor.addSaveListener(saveEvent -> timeEntryProvider.refreshAll());
+		tableEditor.setEnabled(true);
+		table.setWidth(100, Unit.PERCENTAGE);
 		layout.addComponent(table);
-		table.setDragMode(TableDragMode.ROW);
-		table.setDropHandler(new DropHandler() {
 
-			@Override
-			public void drop(final DragAndDropEvent dropEvent) {
-				final DataBoundTransferable t = (DataBoundTransferable) dropEvent.getTransferable();
-				final TimeEntry sourceItemId = (TimeEntry) t.getItemId(); // returns
-																			// our
-																			// Bean
+		final GridRowDragger<TimeEntry> gridRowDragger = new GridRowDragger<>(table);
+		table.getColumns().stream().forEach(col -> col.setSortable(false));
 
-				final AbstractSelectTargetDetails dropData = ((AbstractSelectTargetDetails) dropEvent
-						.getTargetDetails());
-				final TimeEntry targetItemId = (TimeEntry) dropData.getItemIdOver(); // returns
-																						// our
-																						// Bean
-
-				// No move if source and target are the same, or there is no
-				// target
-				if (sourceItemId == targetItemId || targetItemId == null)
-					return;
-
-				// Let's remove the source of the drag so we can add it back
-				// where requested...
-				timeEntryItemContainer.removeItem(sourceItemId);
-
-				if (dropData.getDropLocation() == VerticalDropLocation.BOTTOM) {
-					timeEntryItemContainer.addItemAfter(targetItemId, sourceItemId);
-				} else {
-					final Object prevItemId = timeEntryItemContainer.prevItemId(targetItemId);
-					timeEntryItemContainer.addItemAfter(prevItemId, sourceItemId);
-				}
-			}
-
-			@Override
-			public AcceptCriterion getAcceptCriterion() {
-				return new SourceIs(table);
-			}
+		table.addComponentColumn(entry -> {
+			return new Button("Löschen", clickEvent -> {
+				timeEntryList.remove(entry);
+				timeEntryProvider.refreshAll();
+			});
 		});
-		table.addGeneratedColumn("", new ColumnGenerator() {
-
-			@Override
-			public Object generateCell(final Table source, final Object itemId, final Object columnId) {
-				final Button button = new Button("Löschen");
-				button.addClickListener(new Button.ClickListener() {
-					@Override
-					public void buttonClick(final Button.ClickEvent event) {
-						source.getContainerDataSource().removeItem(itemId);
-					}
-				});
-				return button;
-			}
-		});
-		final TableFieldFactory tableFieldFactory = new TableFieldFactory() {
-
-			@Override
-			public Field<?> createField(final Container container, final Object itemId, final Object propertyId,
-					final Component uiContext) {
-				final Class<?> type = container.getType(propertyId);
-				final Field field = fieldFactory.createField(type, Field.class);
-				if (field instanceof AbstractTextField) {
-					final AbstractTextField abstractTextField = (AbstractTextField) field;
-					abstractTextField.setNullRepresentation("");
-					abstractTextField.setValidationVisible(true);
-				}
-				return field;
-			}
-		};
-		table.setTableFieldFactory(tableFieldFactory);
 
 		layout.addComponent(new Button("Neuer Steckenpunkt", new Button.ClickListener() {
 
 			@Override
 			public void buttonClick(final Button.ClickEvent event) {
-				timeEntryItemContainer.addBean(new TimeEntry());
+				timeEntryList.add(new TimeEntry());
+				timeEntryProvider.refreshAll();
 			}
 		}));
 		final AtomicReference<PhaseDataCompetition> currentPhaseDataReference = new AtomicReference<PhaseDataCompetition>(
@@ -733,26 +603,28 @@ public class MyVaadinUI extends UI {
 				removeImageButton.setEnabled(false);
 			}
 		});
-
+		final AtomicReference<MarathonData> dataReference = new AtomicReference<MarathonData>();
 		final DataBinder<MarathonData> phaseDataBinder = new DataBinder<MarathonData>() {
-
-			private MarathonData data;
 
 			@Override
 			public void bindData(final MarathonData phaseData) {
-				this.data = phaseData;
-				final PhaseDataCompetition dataCompetition = data.getCompetitionPhases().get(phase);
+				dataReference.set(phaseData);
+				final PhaseDataCompetition dataCompetition = phaseData.getCompetitionPhases().computeIfAbsent(phase,
+						k -> new PhaseDataCompetition());
 				currentPhaseDataReference.set(dataCompetition);
-				binder.setItemDataSource(dataCompetition);
-				timeEntryItemContainer.removeAllItems();
-				timeEntryItemContainer.addAll(dataCompetition.getEntries());
-				categoryTimesItemContainer.removeAllItems();
-				final Map<String, PhaseDataCategory> categoryTimes = dataCompetition.getCategoryTimes();
-				for (final String category : data.getCategories()) {
+				binder.readBean(dataCompetition);
+				timeEntryList.clear();
+				timeEntryList.addAll(dataCompetition.getEntries());
+				timeEntryProvider.refreshAll();
+
+				categoryTimesList.clear();
+				final Map<String, PhaseDataCategory> categoryTimes = new HashMap<>(dataCompetition.getCategoryTimes());
+				for (final String category : phaseData.getCategories()) {
+					categoryTimes.computeIfAbsent(category, k -> new PhaseDataCategory());
 					if (!categoryTimes.containsKey(category)) {
 						categoryTimes.put(category, new PhaseDataCategory());
 					}
-					categoryTimesItemContainer.addBean(new Entry<String, PhaseDataCategory>() {
+					categoryTimesList.add(new Entry<String, PhaseDataCategory>() {
 
 						@Override
 						public String getKey() {
@@ -770,6 +642,7 @@ public class MyVaadinUI extends UI {
 						}
 					});
 				}
+				categoryTimesProvider.refreshAll();
 				fileUpload.setReceiver(new Receiver() {
 
 					@Override
@@ -788,38 +661,48 @@ public class MyVaadinUI extends UI {
 			}
 
 			@Override
-			public void commitHandler() {
+			public void commitHandler(final MarathonData data) {
 				try {
-					binder.commit();
-					final PhaseDataCompetition dataCompetition = data.getCompetitionPhases().get(phase);
-					container2Model(timeEntryItemContainer, dataCompetition);
-					for (final Entry<String, PhaseDataCategory> entry : categoryTimesItemContainer.getItemIds()) {
+					final PhaseDataCompetition dataCompetition = data.getCompetitionPhases().computeIfAbsent(phase,
+							k -> new PhaseDataCompetition());
+					binder.writeBean(dataCompetition);
+					dataCompetition.getEntries().clear();
+					dataCompetition.getEntries().addAll(timeEntryList);
+					dataCompetition.getCategoryTimes().clear();
+					for (final Entry<String, PhaseDataCategory> entry : categoryTimesList) {
 						dataCompetition.getCategoryTimes().put(entry.getKey(), entry.getValue());
 					}
-				} catch (final CommitException e) {
+				} catch (final ValidationException e) {
 					throw new RuntimeException("Cannot commit", e);
 				}
 			}
 
-			@Override
-			public MarathonData getCurrentData() {
-				return data;
-			}
 		};
 		layout.addComponent(new Button("Reset Strecke", new Button.ClickListener() {
 
 			@Override
 			public void buttonClick(final Button.ClickEvent event) {
-				phaseDataBinder.commitHandler();
-
-				final PhaseDataCompetition phaseData = phaseDataBinder.getCurrentData().getCompetitionPhases()
-						.get(phase);
+				final MarathonData marathonData = dataReference.get();
+				final PhaseDataCompetition phaseData = marathonData.getCompetitionPhases().get(phase);
 				phaseData.setDefaultPoints();
 
-				model2Container(phaseData, timeEntryItemContainer);
-				System.out.println(phaseData);
+				timeEntryList.clear();
+				timeEntryList.addAll(phaseData.getEntries());
+				timeEntryProvider.refreshAll();
 			}
 		}));
 		return phaseDataBinder;
+	}
+
+	private Double toDouble(final Number v) {
+		if (v == null)
+			return null;
+		return v.doubleValue();
+	}
+
+	private Integer toInteger(final Number n) {
+		if (n == null)
+			return null;
+		return n.intValue();
 	}
 }
